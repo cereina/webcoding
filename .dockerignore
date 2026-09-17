@@ -1,0 +1,9 @@
+node_modules
+.npm-cache
+dist
+.git
+artifacts
+*.log
+*.py
+.env*
+

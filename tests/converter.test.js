@@ -1,0 +1,71 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+import JSZip from 'jszip';
+import mammoth from 'mammoth';
+const dom = new JSDOM('');
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+const { cleanHtml, plainTextToHtml, inspectHtml, buildPage } = await import('../converter.ts');
+const parse = (html) => new JSDOM(html).window.document;
+test('sanitizes executable markup, event handlers, styles and unsafe URLs', () => {
+ const doc = parse(cleanHtml('<script>alert(1)</script><style>body{display:none}</style><iframe src="https://example.com"></iframe><p onclick="alert(1)" style="color:red">Safe</p><a href="javascript:alert(1)">Link</a>'));
+ assert.equal(doc.querySelector('script,style,iframe,[onclick],[style],a[href]'), null);
+ assert.equal(doc.querySelector('p').textContent, 'Safe');
+});
+test('preserves semantic HTML and converts Word heading styles', () => {
+ const doc = parse(cleanHtml('<p class="MsoHeading1"><strong>Title</strong></p><p class="Heading2">Section</p><p class="lead MsoNormal"><em>Detail</em></p><ul><li>First</li></ul><table class="table"><caption>Rates</caption><tr><th scope="col">Name</th><td>Value</td></tr></table><a href="https://example.com">Site</a>'));
+ assert.equal(doc.querySelector('h1 strong').textContent, 'Title');
+ assert.equal(doc.querySelector('h2').textContent, 'Section');
+ assert.equal(doc.querySelector('p').className, 'lead');
+ assert.equal(doc.querySelector('em').textContent, 'Detail');
+ assert.equal(doc.querySelector('li').textContent, 'First');
+ assert.equal(doc.querySelector('th').getAttribute('scope'), 'col');
+ assert.equal(doc.querySelector('a').getAttribute('href'), 'https://example.com');
+});
+test('allows embedded raster images and omits remote and SVG images', () => {
+ const doc = parse(cleanHtml('<img src="data:image/png;base64,aGVsbG8=" alt="Chart"><img src="https://example.com/image.png" alt="Remote"><img src="data:image/svg+xml;base64,aGVsbG8=" alt="Vector">'));
+ assert.equal(doc.querySelectorAll('img').length, 1);
+ assert.match(doc.body.textContent, /Image omitted: Remote/);
+ assert.match(doc.body.textContent, /Image omitted: Vector/);
+});
+test('checks heading hierarchy, table headers and link names', () => {
+ const messages = inspectHtml('<h1>Title</h1><h3>Skipped</h3><h2></h2><table><tr><td>Cell</td></tr></table><a href="https://example.com">Click here</a><a></a>').map(f => f.message).join('\n');
+ for (const pattern of [/skips from h1 to h3/, /h2 heading is empty/, /no header cells/, /more descriptive name/, /no accessible text/, /no valid destination/]) assert.match(messages, pattern);
+ assert.match(inspectHtml('<p>Text</p>')[0].message, /No main heading/);
+ assert.ok(inspectHtml('<h1>One</h1><h1>Two</h1>').some(f => /2 main headings/.test(f.message)));
+});
+test('distinguishes missing alternative text from decorative images', () => {
+ const findings = inspectHtml('<h1>Title</h1><img src="data:image/png;base64,aGVsbG8="><img src="data:image/png;base64,aGVsbG8=" alt="">');
+ assert.ok(findings.some(f => f.level === 'warning' && /needs alternative text/.test(f.message)));
+ assert.ok(findings.some(f => f.level === 'info' && /decorative/.test(f.message)));
+});
+test('escapes document title and validates language', () => {
+ const title = '</title><script>alert("x")</script> & Guide';
+ const doc = parse(buildPage('<h1 onclick="alert(1)">Title</h1>', {title, language:'fr-CA'}));
+ assert.equal(doc.title, title);
+ assert.equal(doc.documentElement.lang, 'fr-CA');
+ assert.equal(doc.querySelector('script,[onclick],link[rel="stylesheet"]'), null);
+ assert.equal(parse(buildPage('', {language:'en" onclick="bad'})).documentElement.lang, 'en');
+ assert.equal(parse(buildPage('')).querySelector('link[rel="stylesheet"], [class]'), null);
+});
+test('plain text escapes markup and keeps paragraphs and line breaks', () => {
+ const doc = parse(plainTextToHtml('<script>alert("x")</script> & text\nnext\n\nSecond'));
+ assert.equal(doc.querySelector('script'), null);
+ assert.equal(doc.querySelectorAll('p').length, 2);
+ assert.equal(doc.querySelectorAll('br').length, 1);
+ assert.match(doc.body.textContent, /<script>/);
+ assert.equal(plainTextToHtml('  '), '');
+});
+test('converts a minimal real DOCX archive', async () => {
+ const zip = new JSZip();
+ zip.file('[Content_Types].xml', '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+ zip.file('_rels/.rels', '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+ zip.file('word/document.xml', '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Imported title</w:t></w:r></w:p><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Bold text</w:t></w:r></w:p></w:body></w:document>');
+ const buffer = await zip.generateAsync({type:'nodebuffer'});
+ const result = await mammoth.convertToHtml({buffer}, {styleMap:['p.Heading1 => h1:fresh']});
+ const doc = parse(cleanHtml(result.value));
+ assert.equal(doc.querySelector('h1').textContent, 'Imported title');
+ assert.equal(doc.querySelector('p strong').textContent, 'Bold text');
+});
+
