@@ -13,8 +13,8 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     if (match) { const h = document.createElement(`h${match[1]}`); if (sourceAttribute && p.hasAttribute(sourceAttribute)) h.setAttribute(sourceAttribute, p.getAttribute(sourceAttribute)!); h.append(...p.childNodes); p.replaceWith(h); }
   });
   template.innerHTML = DOMPurify.sanitize(template.innerHTML, {
-    ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','hr','div','span','section','article','header','footer','aside','nav','main','strong','b','em','i','u','s','small','sup','sub','mark','abbr','blockquote','cite','address','pre','code','ul','ol','li','dl','dt','dd','a','img','figure','figcaption','table','caption','thead','tbody','tfoot','tr','th','td','details','summary'],
-    ALLOWED_ATTR: [...(sourceAttribute ? [sourceAttribute] : []), 'data-maple-toc','class','id','href','title','src','alt','width','height','scope','headers','colspan','rowspan','start','value','reversed','lang','dir','open','role','aria-label','aria-labelledby','aria-describedby','aria-hidden'],
+    ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','hr','div','span','section','article','header','footer','aside','nav','main','strong','b','em','i','u','s','small','sup','sub','mark','abbr','blockquote','cite','address','pre','code','ul','ol','li','dl','dt','dd','a','img','figure','figcaption','table','caption','colgroup','col','thead','tbody','tfoot','tr','th','td','details','summary'],
+    ALLOWED_ATTR: [...(sourceAttribute ? [sourceAttribute] : []), 'data-maple-toc','class','id','href','title','src','alt','width','height','scope','headers','span','colspan','rowspan','start','value','reversed','lang','dir','open','role','aria-label','aria-labelledby','aria-describedby','aria-hidden'],
     ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false,
     FORBID_TAGS: ['style','script','iframe','object','embed','form','input','button'],
   });
@@ -107,6 +107,5 @@ ${cleanHtml(html, sourceAttribute)}
 </main></body>
 </html>`;
 }
-
 
 

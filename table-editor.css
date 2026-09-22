@@ -17,4 +17,4 @@
 #cell-settings>label{display:block;margin-top:14px;font-size:14px;font-weight:650}
 @media(min-width:761px){.table-dialog-body{grid-template-columns:320px minmax(0,1fr)}.table-stage{position:sticky;top:0;align-self:start;max-height:65vh;overflow:auto}}
 .merge-toolbar{padding:14px;background:#f1f6f3;border:1px solid #d3e2d9;border-radius:8px}.merge-toolbar>div{display:flex;flex-wrap:wrap;gap:8px}.merge-toolbar p{font-size:13px;line-height:1.5;margin:0 0 10px}#merge-feedback:empty{display:none}#merge-feedback{margin:10px 0 0;color:#254c40}.advanced-headers{margin-top:16px}.advanced-headers summary{cursor:pointer;font-size:14px;font-weight:600}
-
+.table-auto{border:1px solid #bdd3c8;border-radius:8px;padding:14px;background:#f4f8f5}.table-auto p,.table-auto li{font-size:13px;line-height:1.5}.table-auto>p{margin:9px 0 0}#table-analysis{max-height:190px;overflow:auto}#table-analysis:empty{display:none}#table-analysis p{margin:12px 0 4px}#table-analysis ul{padding-left:20px;margin:4px 0}

@@ -1,3 +1,4 @@
+import { assignTableHeaders } from './table-auto-headers.ts';
 import { mergeNeighbour, splitCell } from './table-merge.ts';
 import { editCellText, changeTableStructure, setCellHeader, associateCellHeaders } from './table-model.ts';
 import { cleanHtml } from './converter.ts';
@@ -47,7 +48,12 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     const item = currentItem();
     elements.visual.innerHTML = cleanHtml(item.table.outerHTML);
     // Keep internal header/ARIA relationships while isolating IDs from the app.
-    elements.visual.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+    const prefix = `table-preview-${active}-`;
+    const mapped = new Map<string,string>();
+    elements.visual.querySelectorAll('[id]').forEach((node,i) => { const id=prefix+i; if(!mapped.has(node.id)) mapped.set(node.id,id); node.id=id; });
+    elements.visual.querySelectorAll('[headers],[aria-labelledby],[aria-describedby]').forEach(node => {
+      for(const attr of ['headers','aria-labelledby','aria-describedby']) if(node.hasAttribute(attr)) node.setAttribute(attr, node.getAttribute(attr)!.split(/\s+/).map(id=>mapped.get(id)??`${prefix}missing-${id}`).join(' '));
+    });
     elements.visual.querySelectorAll('a').forEach(node => node.removeAttribute('href'));
     elements.name.textContent = `Table ${active + 1}`;
     elements.dimensions.textContent = `${item.rows.length} rows · ${item.width} ${item.complex ? 'cells in widest row' : 'columns'}`;
@@ -81,6 +87,15 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     if (!headers.length) options.textContent = 'Mark a cell as a header to make it available here.';
     for (const id of ['row-add','row-remove','column-add','column-remove']) getElement(id, 'button').disabled = item.complex || !!item.table.querySelector('table') || (id === 'row-remove' && item.rows.length <= 1) || (id === 'column-remove' && item.width <= 1);
   }
+  getElement('analyze-table-headers','button').onclick = () => {
+    const result = assignTableHeaders(currentItem());
+    preview(); cellSettings();
+    const report = getElement('table-analysis','div'); report.replaceChildren();
+    const summary = document.createElement('p');
+    summary.textContent = result.issues.length ? 'No changes made. Review these items, then analyze again:' : result.changed ? 'Header IDs and relationships added to this draft. Review them, then Apply changes.' : 'Existing header relationships retained. Review their meaning before publishing.';
+    report.append(summary);
+    if(result.issues.length) { const list=document.createElement('ul'); for(const issue of result.issues){const li=document.createElement('li');li.textContent=issue;list.append(li);} report.append(list); }
+  };
   for (const direction of ['right','down'] as const) getElement(`merge-${direction}`, 'button').onclick = () => {
     try { mergeNeighbour(currentItem(), selectedRow, selectedColumn, direction); show(active, true); getElement('merge-feedback','p').textContent = 'Cells merged. Both cells’ contents are kept.'; }
     catch(error) { getElement('merge-feedback','p').textContent = (error as Error).message; }
@@ -111,6 +126,7 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
   function show(index: number, keepSelection = false): void {
     if (!keepSelection) { selectedRow = 0; selectedColumn = 0; }
     active = index; const item = currentItem();
+    getElement('table-analysis','div').replaceChildren();
     getElement('merge-feedback','p').textContent = '';
     elements.picker.value = String(index);
     elements.caption.value = item.table.caption?.textContent || '';
@@ -137,4 +153,3 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     catch { elements.status.textContent = 'Unable to apply these changes safely. Your document has not changed.'; }
   };
 }
-
