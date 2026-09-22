@@ -13,6 +13,7 @@ import { setupHeadingEditor } from './heading-editor.ts';
 import { linkFootnotes } from './footnotes.ts';
 
 import { getElement } from './dom.ts';
+document.documentElement.dataset.mapleBuild = 'maple-heading-runtime-v3';
 const example = `<h1>Getting started with your project</h1>
 <p>A simple guide to planning, building, and sharing your next idea.</p>
 

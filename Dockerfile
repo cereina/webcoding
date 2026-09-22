@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+RUN echo "heading-editor-runtime-v3"
 RUN npm run build
 
 FROM nginx:stable-alpine
