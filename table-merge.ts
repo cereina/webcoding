@@ -1,5 +1,7 @@
 import { refreshTableShape, type TableItem } from './table-model.ts';
+
 interface Position { cell: HTMLTableCellElement; row: number; col: number; height: number; width: number }
+
 export function tableGrid(item: TableItem) {
   const grid: HTMLTableCellElement[][] = [], positions: Position[] = [];
   item.rows.forEach((row,r) => {
@@ -11,48 +13,137 @@ export function tableGrid(item: TableItem) {
       const height=cell.rowSpan===0 ? remaining : cell.rowSpan, width=cell.colSpan;
       if (height>remaining || height*width>10000) throw new Error('This table has unsupported spans. Review its structure first.');
       for(let y=r;y<r+height;y++) for(let x=col;x<col+width;x++) {
-        grid[y] ??= []; if(grid[y]![x]) throw new Error('Overlapping cells need repair before merging.'); grid[y]![x]=cell;
+        grid[y] ??= [];
+        if(grid[y]![x]) throw new Error('Overlapping cells need repair before merging.');
+        grid[y]![x]=cell;
       }
-      positions.push({cell,row:r,col,height,width});col+=width;
+      positions.push({cell,row:r,col,height,width});
+      col+=width;
     }
   });
   return {grid,positions};
 }
-export function mergeNeighbour(item: TableItem, row: number, column: number, direction: 'right'|'down'): HTMLTableCellElement {
-  const {grid,positions}=tableGrid(item), cell=item.rows[row]?.cells[column];
-  const a=positions.find(p=>p.cell===cell); if(!a) throw new Error('Select a cell first.');
-  const neighbour=direction==='right'?grid[a.row]?.[a.col+a.width]:grid[a.row+a.height]?.[a.col];
-  const b=positions.find(p=>p.cell===neighbour);
-  if(!b) throw new Error(`There is no cell ${direction==='right'?'to the right':'below'} to merge.`);
-  if(a.cell.parentElement?.parentElement!==b.cell.parentElement?.parentElement) throw new Error('Cells in different table sections cannot be merged.');
-  if(direction==='right' ? a.row!==b.row || a.height!==b.height : a.col!==b.col || a.width!==b.width) throw new Error('These cells do not line up. Split the neighbouring merged cell first.');
-  if(a.cell.tagName!==b.cell.tagName || a.cell.scope!==b.cell.scope) throw new Error('Choose cells with the same cell type before merging.');
-  if(a.cell.querySelector('table') || b.cell.querySelector('table')) throw new Error('Cells containing nested tables cannot be merged.');
-  // Preserve removed cell destinations and rich content rather than discarding them.
-  if(b.cell.id && !(b.cell.tagName==='TH' && !a.cell.id)) { const anchor=document.createElement('span');anchor.id=b.cell.id;a.cell.append(anchor); }
-  if(a.cell.childNodes.length && b.cell.childNodes.length) a.cell.append(document.createElement('br'));
-  a.cell.append(...b.cell.childNodes);
-  const refs=new Set(`${a.cell.headers} ${b.cell.headers}`.split(/\s+/).filter(Boolean));
-  if(refs.size) a.cell.headers=[...refs].join(' ');
-  if(b.cell.id && b.cell.tagName==='TH') {
-    if(!a.cell.id) { a.cell.id=b.cell.id; }
-    item.table.querySelectorAll('[headers]').forEach(el=>el.setAttribute('headers',[...new Set(el.getAttribute('headers')!.split(/\s+/).map(id=>id===b.cell.id?a.cell.id:id))].join(' ')));
+
+function preserveRemovedId(item: TableItem, target: HTMLTableCellElement, removed: HTMLTableCellElement): void {
+  if (!removed.id || removed.id === target.id) return;
+  if (removed.tagName === 'TH') {
+    if (!target.id) target.id = removed.id;
+    const replacementId = target.id;
+    item.table.querySelectorAll('[headers]').forEach(el => {
+      const refs = (el.getAttribute('headers') ?? '').split(/\s+/).filter(Boolean);
+      if (!refs.includes(removed.id)) return;
+      el.setAttribute('headers', [...new Set(refs.map(id => id === removed.id ? replacementId : id))].join(' '));
+    });
+    if (target.id === removed.id) return;
   }
-  if(direction==='right') a.cell.colSpan=a.width+b.width; else a.cell.rowSpan=a.height+b.height;
-  b.cell.remove();refreshTableShape(item);return a.cell;
-}
-export function splitCell(item: TableItem,row:number,column:number): void {
-  const {positions}=tableGrid(item), cell=item.rows[row]?.cells[column];
-  const p=positions.find(p=>p.cell===cell);if(!p) throw new Error('Select a cell first.');
-  if(p.width===1 && p.height===1) throw new Error('This cell is already unmerged.');
-  for(let r=p.row;r<p.row+p.height;r++) for(let c=p.col;c<p.col+p.width;c++) {
-    if(r===p.row && c===p.col) continue;
-    const added=document.createElement(p.cell.tagName.toLowerCase()) as HTMLTableCellElement;
-    if(p.cell.scope) added.scope=p.cell.scope;
-    if(p.cell.headers) added.headers=p.cell.headers;
-    const after=positions.find(x=>x.row===r && x.col>c)?.cell;
-    item.rows[r]!.insertBefore(added,after??null);
-  }
-  p.cell.removeAttribute('rowspan');p.cell.removeAttribute('colspan');refreshTableShape(item);
+  const anchor=document.createElement('span');
+  anchor.id=removed.id;
+  target.append(anchor);
 }
 
+export function mergeCells(item: TableItem, cells: Iterable<HTMLTableCellElement>): HTMLTableCellElement {
+  const selected = new Set(cells);
+  if (selected.size < 2) throw new Error('Select at least two cells to merge.');
+  const {grid,positions}=tableGrid(item);
+  const chosen = positions.filter(p=>selected.has(p.cell));
+  if (chosen.length !== selected.size) throw new Error('The selection includes a cell outside this table.');
+
+  const top=Math.min(...chosen.map(p=>p.row));
+  const left=Math.min(...chosen.map(p=>p.col));
+  const bottom=Math.max(...chosen.map(p=>p.row+p.height));
+  const right=Math.max(...chosen.map(p=>p.col+p.width));
+  const targetPosition=chosen.find(p=>p.row===top && p.col===left);
+  if (!targetPosition) throw new Error('Select a complete rectangle of cells.');
+
+  for(let y=top;y<bottom;y++) for(let x=left;x<right;x++) {
+    const cell=grid[y]?.[x];
+    if(!cell || !selected.has(cell)) throw new Error('Select a complete rectangle with no gaps before merging.');
+  }
+  for (const p of chosen) {
+    if (p.row < top || p.col < left || p.row+p.height > bottom || p.col+p.width > right) {
+      throw new Error('A merged cell crosses the edge of this selection. Select the whole cell.');
+    }
+  }
+
+  const target=targetPosition.cell;
+  const section=target.parentElement?.parentElement;
+  if (chosen.some(p=>p.cell.parentElement?.parentElement!==section)) throw new Error('Cells in different table sections cannot be merged.');
+  if (chosen.some(p=>p.cell.tagName!==target.tagName || p.cell.scope!==target.scope)) throw new Error('Choose cells with the same cell type before merging.');
+  if (chosen.some(p=>p.cell.querySelector('table'))) throw new Error('Cells containing nested tables cannot be merged.');
+
+  const ordered=[...chosen].sort((a,b)=>a.row-b.row || a.col-b.col);
+  const headerRefs=new Set<string>();
+  for (const p of ordered) {
+    for (const id of p.cell.headers.split(/\s+/).filter(Boolean)) headerRefs.add(id);
+  }
+  for (const p of ordered) {
+    if (p.cell===target) continue;
+    preserveRemovedId(item,target,p.cell);
+    if(target.childNodes.length && p.cell.childNodes.length) target.append(document.createElement('br'));
+    target.append(...p.cell.childNodes);
+  }
+  if (headerRefs.size) target.headers=[...headerRefs].join(' ');
+  for (const p of ordered) if(p.cell!==target) p.cell.remove();
+
+  if (bottom-top===1) target.removeAttribute('rowspan'); else target.rowSpan=bottom-top;
+  if (right-left===1) target.removeAttribute('colspan'); else target.colSpan=right-left;
+  refreshTableShape(item);
+  return target;
+}
+
+export function mergeNeighbour(item: TableItem, row: number, column: number, direction: 'right'|'down'): HTMLTableCellElement {
+  const {grid,positions}=tableGrid(item), cell=item.rows[row]?.cells[column];
+  const a=positions.find(p=>p.cell===cell);
+  if(!a) throw new Error('Select a cell first.');
+  const neighbour=direction==='right'?grid[a.row]?.[a.col+a.width]:grid[a.row+a.height]?.[a.col];
+  if(!neighbour) throw new Error(`There is no cell ${direction==='right'?'to the right':'below'} to merge.`);
+  return mergeCells(item,[a.cell,neighbour]);
+}
+
+export function splitCell(item: TableItem,row:number,column:number,rows?:number,columns?:number): void {
+  const {positions}=tableGrid(item), cell=item.rows[row]?.cells[column];
+  const p=positions.find(p=>p.cell===cell);
+  if(!p) throw new Error('Select a cell first.');
+  if(p.width===1 && p.height===1) throw new Error('This cell is already a single cell.');
+
+  const rowParts=rows ?? p.height;
+  const columnParts=columns ?? p.width;
+  if(!Number.isInteger(rowParts) || !Number.isInteger(columnParts) || rowParts<1 || columnParts<1) {
+    throw new Error('Choose whole numbers for rows and columns.');
+  }
+  if(rowParts>p.height || columnParts>p.width || p.height%rowParts || p.width%columnParts) {
+    throw new Error(`Choose row and column counts that divide this ${p.height} × ${p.width} merged cell evenly.`);
+  }
+  if(rowParts===1 && columnParts===1) throw new Error('Choose more than one resulting cell.');
+
+  const partHeight=p.height/rowParts, partWidth=p.width/columnParts;
+  const original=p.cell;
+  const copyAttributes=(target: HTMLTableCellElement) => {
+    for(const attr of original.attributes) {
+      if(['id','rowspan','colspan'].includes(attr.name)) continue;
+      target.setAttribute(attr.name,attr.value);
+    }
+  };
+  const setSpan=(target: HTMLTableCellElement) => {
+    if(partHeight===1) target.removeAttribute('rowspan'); else target.rowSpan=partHeight;
+    if(partWidth===1) target.removeAttribute('colspan'); else target.colSpan=partWidth;
+  };
+
+  setSpan(original);
+  for(let ry=0;ry<rowParts;ry++) {
+    const sourceRow=p.row+ry*partHeight;
+    const row=item.rows[sourceRow];
+    if(!row) throw new Error('This cell cannot be split across the current table structure.');
+    const referencePositions=positions.filter(x=>x.row===sourceRow && x.cell!==original).sort((a,b)=>a.col-b.col);
+    for(let cx=0;cx<columnParts;cx++) {
+      if(ry===0 && cx===0) continue;
+      const startCol=p.col+cx*partWidth;
+      const added=document.createElement(original.tagName.toLowerCase()) as HTMLTableCellElement;
+      copyAttributes(added);
+      setSpan(added);
+      const after=referencePositions.find(x=>x.col>startCol)?.cell ?? null;
+      row.insertBefore(added,after);
+    }
+  }
+  refreshTableShape(item);
+}
