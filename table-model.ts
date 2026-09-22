@@ -265,9 +265,10 @@ export function removeUnnecessaryTableAttributes(item: TableItem): number {
         removed++;
       }
     }
-    if (element instanceof HTMLTableCellElement) {
-      if (element.colSpan === 1 && element.hasAttribute('colspan')) { element.removeAttribute('colspan'); removed++; }
-      if (element.rowSpan === 1 && element.hasAttribute('rowspan')) { element.removeAttribute('rowspan'); removed++; }
+    if (element.tagName === 'TH' || element.tagName === 'TD') {
+      const cell = element as HTMLTableCellElement;
+      if (cell.colSpan === 1 && cell.hasAttribute('colspan')) { cell.removeAttribute('colspan'); removed++; }
+      if (cell.rowSpan === 1 && cell.hasAttribute('rowspan')) { cell.removeAttribute('rowspan'); removed++; }
     }
     if ((element.tagName === 'COL' || element.tagName === 'COLGROUP') && element.getAttribute('span') === '1') {
       element.removeAttribute('span');
