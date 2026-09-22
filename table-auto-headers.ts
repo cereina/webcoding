@@ -71,6 +71,10 @@ export function assignTableHeaders(item: TableItem): HeaderAnalysis {
   const used=new Set(ids.keys());let next=1,changed=0;
   for(const h of headers) if(!h.cell.id) {while(used.has(`table-header-${next}`))next++;h.cell.id=`table-header-${next++}`;used.add(h.cell.id);changed++;}
   for(const [cell,targets] of plans) if(!cell.headers.trim() && targets.length) {cell.headers=targets.map(h=>h.id).join(' ');changed++;}
+  // Remove scope only after inference and validation succeed.
+  for (const cell of cells) if (cell.hasAttribute('scope')) {
+    cell.removeAttribute('scope'); changed++;
+  }
   if(changed)item.dirty=true;
   return {changed,issues:[]};
 }

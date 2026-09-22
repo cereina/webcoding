@@ -27,3 +27,10 @@ test('nested tables cannot be destroyed through cell text or structure controls'
  assert.throws(()=>m.editCellText(d.tables[0],0,0,'Gone'));assert.throws(()=>m.changeTableStructure(d.tables[0],'row',0,true));
 });
 
+test('manual explicit links remove scope from participating cells and preserve unrelated headers',()=>{
+ const d=m.createTableDraft('<table><tr><th scope="col">A</th><th scope="col">B</th></tr><tr><td>1</td><td>2</td></tr></table>'),t=d.tables[0];
+ m.associateCellHeaders(d,t,1,0,[t.rows[0].cells[0]]);
+ assert.equal(t.rows[0].cells[0].hasAttribute('scope'),false);
+ assert.equal(t.rows[0].cells[1].scope,'col');
+ assert.equal(t.rows[1].cells[0].headers,t.rows[0].cells[0].id);
+});

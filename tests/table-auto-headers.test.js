@@ -59,3 +59,17 @@ test('applied output retains generated associations', () => {
  const value=output.querySelector('td');
  for(const id of value.headers.split(' ')) assert.equal(output.getElementById(id).tagName,'TH');
 });
+
+test('automatic explicit associations remove scope only after successful analysis', () => {
+ const draft=createTableDraft('<table><thead><tr><th scope="col">Name</th><th scope="col">Value</th></tr></thead><tbody><tr><th scope="row">A</th><td>1</td></tr></tbody></table>');
+ const item=draft.tables[0];
+ assert.deepEqual(assignTableHeaders(item).issues,[]);
+ assert.equal(item.table.querySelector('[scope]'),null);
+ assert.ok(item.table.querySelector('td').headers);
+ assert.equal(new JSDOM(applyTableDraft(draft)).window.document.querySelector('[scope]'),null);
+ assert.deepEqual(assignTableHeaders(item),{changed:0,issues:[]});
+ const bad=createTableDraft('<table><tr><th scope="col">Name</th></tr><tr><td headers="missing">1</td></tr></table>').tables[0];
+ const before=bad.table.outerHTML;
+ assert.ok(assignTableHeaders(bad).issues.length);
+ assert.equal(bad.table.outerHTML,before);
+});

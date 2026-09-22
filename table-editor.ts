@@ -119,7 +119,7 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     for (let i = 0; i < count; i++) {
       const label = document.createElement('label');
       const input = document.createElement('input'); input.type = 'checkbox'; input.checked = selected.has(i); input.disabled = item.complex;
-      input.addEventListener('change', () => { setTableHeaders(item, axis, i, input.checked); preview(); cellSettings(); });
+      input.addEventListener('change', () => { setTableHeaders(item, axis, i, input.checked); show(active, true); });
       label.append(input, `${axis === 'row' ? 'Row' : 'Column'} ${i + 1}`); target.append(label);
     }
   }
@@ -133,7 +133,7 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     elements.prev.disabled = index === 0; elements.next.disabled = index === draft.tables.length - 1;
     headerOptions('row', elements.headerRows, item.rows.length, item.headerRows);
     headerOptions('column', elements.headerColumns, item.width, item.headerColumns);
-    elements.warning.textContent = item.complex ? 'This table contains merged cells or uneven rows. Select individual cells to edit text and assign headers. Row and column insertion or removal is disabled to preserve merged structure.' : 'Header rows describe columns. Header columns describe rows. Highlighted cells are headers; verify that they describe the related data.';
+    elements.warning.textContent = item.complex ? 'This table contains merged cells or uneven rows. Select individual cells to edit text and assign headers. Row and column insertion or removal is disabled to preserve merged structure.' : 'Leading column-header rows move into the table head. Header columns describe rows and stay in the table body. Highlighted cells are headers; verify that they describe the related data.';
     preview(); cellSettings();
   }
   elements.open.onclick = () => {

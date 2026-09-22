@@ -39,6 +39,48 @@ export function setTableCaption(item: TableItem, text: string): void {
   else { const caption = item.table.caption || item.table.createCaption(); caption.textContent = text; }
   item.dirty = true;
 }
+/** Move only a leading band of column headings; never reorder data or split spans. */
+export function syncTableHead(item: TableItem): void {
+  const rows = [...item.table.rows];
+  let count = 0;
+  for (const row of rows) {
+    if (row.parentElement?.tagName === 'TFOOT' || !row.cells.length ||
+        ![...row.cells].every(cell => cell.tagName === 'TH' && ['col', 'colgroup', ''].includes(cell.scope))) break;
+    count++;
+  }
+  // A rowspan cannot cross the new thead/tbody boundary. Keep the current
+  // grouping while the user finishes assigning the remaining heading cells.
+  for (let r = 0; r < count; r++) {
+    for (const cell of rows[r]!.cells) {
+      const remaining = rows.slice(r).filter(row => row.parentElement === rows[r]!.parentElement).length;
+      const height = cell.rowSpan || remaining;
+      if (r + height > count) return;
+    }
+  }
+  // Preserve rowspan="0" coverage when a row changes its row group.
+  const zeroSpans = rows.flatMap((row, r) => [...row.cells].filter(cell => cell.rowSpan === 0).map(cell => ({
+    cell, row, r, height: rows.slice(r).filter(other => other.parentElement === row.parentElement).length,
+  })));
+  const oldHead = item.table.tHead;
+  const demoted = oldHead ? [...oldHead.rows].filter(row => rows.indexOf(row) >= count) : [];
+  if (demoted.length) {
+    let body = item.table.tBodies[0];
+    if (!body) {
+      body = document.createElement('tbody');
+      item.table.insertBefore(body, item.table.tFoot);
+    }
+    const first = body.firstChild;
+    for (const row of demoted) body.insertBefore(row, first);
+  }
+  if (count) {
+    const head = oldHead || item.table.createTHead();
+    for (const row of rows.slice(0, count)) head.append(row);
+  } else if (oldHead && !oldHead.rows.length) oldHead.remove();
+  for (const entry of zeroSpans) {
+    const remaining = rows.slice(entry.r).filter(row => row.parentElement === entry.row.parentElement).length;
+    if (remaining !== entry.height) entry.cell.rowSpan = entry.height;
+  }
+}
 export function setTableHeaders(item: TableItem, axis: HeaderAxis, index: number, enabled: boolean): void {
   if (item.complex) throw new Error('Merged or uneven tables need individual header associations.');
   const selected = axis === 'row' ? item.headerRows : item.headerColumns;
@@ -51,7 +93,8 @@ export function setTableHeaders(item: TableItem, axis: HeaderAxis, index: number
     if (scope) replacement.setAttribute('scope', scope);
     replacement.append(...cell.childNodes); cell.replaceWith(replacement);
   }));
-  item.dirty = true;
+  syncTableHead(item);
+  refreshTableShape(item);
 }
 export function applyTableDraft(draft: TableDraft): string {
   const changed = draft.tables.filter(item => item.dirty);
@@ -127,6 +170,7 @@ export function setCellHeader(item: TableItem, row: number, column: number, scop
     const refs = el.getAttribute('headers')!.split(/\s+/).filter(id => id !== replacement.id);
     if (refs.length) el.setAttribute('headers', refs.join(' ')); else el.removeAttribute('headers');
   });
+  syncTableHead(item);
   refreshTableShape(item);
 }
 export function associateCellHeaders(draft: TableDraft, item: TableItem, row: number, column: number, headers: HTMLTableCellElement[]): void {
@@ -136,9 +180,14 @@ export function associateCellHeaders(draft: TableDraft, item: TableItem, row: nu
   const used = new Set([...root.content.querySelectorAll('[id]'), ...draft.tables.flatMap(t => [...t.table.querySelectorAll('[id]')])].map(el => el.id));
   for (const header of headers) {
     if (header === cell || header.tagName !== 'TH' || header.closest('table') !== item.table) throw new Error('Choose headers from this table.');
+  }
+  for (const header of headers) {
     if (!header.id) { let n = 1; while (used.has(`table-header-${n}`)) n++; header.id = `table-header-${n}`; used.add(header.id); }
   }
-  if (headers.length) cell.setAttribute('headers', headers.map(h => h.id).join(' ')); else cell.removeAttribute('headers');
+  if (headers.length) {
+    cell.setAttribute('headers', headers.map(h => h.id).join(' '));
+    cell.removeAttribute('scope');
+    for (const header of headers) header.removeAttribute('scope');
+  } else cell.removeAttribute('headers');
   item.dirty = true;
 }
-

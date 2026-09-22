@@ -122,3 +122,34 @@ test('rejects merged or uneven header edits but permits captions', () => {
  }
 });
 
+test('column heading rows move into thead and deselection restores body order', () => {
+ const draft=createTableDraft('<table><caption>Title</caption><colgroup><col span="2"></colgroup><tbody id="body"><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr><tr><td>E</td><td>F</td></tr></tbody><tfoot><tr><td>Total</td><td>3</td></tr></tfoot></table>');
+ const item=draft.tables[0];
+ setTableHeaders(item,'row',0,true);
+ assert.equal(item.table.tHead.rows.length,1);
+ assert.equal(item.table.tBodies[0].id,'body');
+ setTableHeaders(item,'row',1,true);
+ assert.equal(item.table.tHead.rows.length,2);
+ setTableHeaders(item,'row',0,false);
+ assert.equal(item.table.tHead,null);
+ assert.deepEqual([...item.table.rows].map(r=>r.cells[0].textContent),['A','C','E','Total']);
+ assert.equal(item.table.tFoot.rows.length,1);
+});
+test('row headers and nonleading column headings do not reorder data', () => {
+ const item=createTableDraft(table).tables[0];
+ setTableHeaders(item,'column',0,true);
+ assert.equal(item.table.tHead,null);
+ setTableHeaders(item,'row',1,true);
+ assert.equal(item.table.tHead,null);
+ assert.equal(item.rows[0].cells[0].textContent,'A');
+});
+test('individual complex heading edits move the complete band without splitting rowspan', async () => {
+ const {setCellHeader}=await import('../table-model.ts');
+ const item=createTableDraft('<table><tbody><tr><td rowspan="2">Name</td><td>Group</td></tr><tr><td>Detail</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>').tables[0];
+ setCellHeader(item,0,0,'col'); setCellHeader(item,0,1,'col');
+ assert.equal(item.table.tHead,null);
+ setCellHeader(item,1,0,'col');
+ assert.equal(item.table.tHead.rows.length,2);
+ assert.equal(item.table.tHead.rows[0].cells[0].rowSpan,2);
+ assert.equal(item.table.tBodies[0].rows.length,1);
+});
