@@ -26,7 +26,8 @@ test('inserts at top when no opening h1 exists, including documents with a later
   const output = applyToc(draft, 'en');
   assert.ok(output.startsWith('<nav'));
   assert.equal(parse(output).body.firstElementChild.tagName, 'NAV');
-  assert.ok(draft.headings.every(h => h.selected));
+  assert.ok(draft.headings.filter(h => h.level >= 2).every(h => h.selected));
+  assert.ok(draft.headings.filter(h => h.level === 1).every(h => !h.selected));
  }
 });
 
@@ -103,7 +104,8 @@ test('nests H2 under its H1 list item and every deeper heading under its parent'
  assert.equal(doc.querySelector('nav > ul > li > ul > li > ul > li > a').textContent,'Detail');
  assert.equal(doc.querySelectorAll('ul > ul').length,0);
  const reopened = createTocDraft(applyToc(draft,'en'));
- assert.ok(reopened.headings.every(h=>h.selected));
+ assert.ok(reopened.headings.filter(h=>h.level>=2).every(h=>h.selected));
+ assert.ok(reopened.headings.filter(h=>h.level===1).every(h=>!h.selected));
 });
 test('omitted parents and skipped levels never nest under unrelated earlier siblings', () => {
  const draft = createTocDraft('<h1>Title</h1><h2>First</h2><h3>Detail</h3><h2>Omitted</h2><h4>Promoted</h4><h1>Next</h1><h2>Last</h2>');
