@@ -39,20 +39,23 @@ export function createHeadingDraft(source: string): HeadingDraft {
 
   function walk(node: Node): void {
     if (managedToc(node)) { hasManagedToc = true; return; }
-    if (isElement(node) && /^h[1-6]$/.test(node.tagName) && node.sourceCodeLocation?.startTag) {
+    if (isElement(node) && /^h[1-6]$/.test(node.tagName)) {
       const location = node.sourceCodeLocation;
-      const text = textContent(node).replace(/\s+/g, ' ').trim() || '(empty heading)';
-      const level = Number(node.tagName[1]);
-      headings.push({
-        key: location.startOffset,
-        text,
-        originalLevel: level,
-        level,
-        startTagStart: location.startTag.startOffset,
-        startTagEnd: location.startTag.endOffset,
-        endTagStart: location.endTag?.startOffset,
-        endTagEnd: location.endTag?.endOffset,
-      });
+      const startTag = location?.startTag;
+      if (location && startTag) {
+        const text = textContent(node).replace(/\s+/g, ' ').trim() || '(empty heading)';
+        const level = Number(node.tagName[1]);
+        headings.push({
+          key: location.startOffset,
+          text,
+          originalLevel: level,
+          level,
+          startTagStart: startTag.startOffset,
+          startTagEnd: startTag.endOffset,
+          endTagStart: location.endTag?.startOffset,
+          endTagEnd: location.endTag?.endOffset,
+        });
+      }
     }
     children(node).forEach(walk);
   }
