@@ -9,6 +9,7 @@ import { formatHtml } from './formatter.ts';
 import { createCodeEditor } from './code-editor.ts';
 import { setupTableEditor } from './table-editor.ts';
 import { setupTocEditor } from './toc-editor.ts';
+import { setupHeadingEditor } from './heading-editor.ts';
 import { linkFootnotes } from './footnotes.ts';
 
 import { getElement } from './dom.ts';
