@@ -8,6 +8,19 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
   template.content.querySelectorAll<HTMLAnchorElement>('a[name]').forEach(anchor => {
     if (!anchor.id) anchor.id = anchor.getAttribute('name') ?? '';
   });
+  template.content.querySelectorAll<HTMLHeadingElement>('h1,h2,h3,h4,h5,h6').forEach((heading) => {
+    if (heading.id) return;
+    const anchor = heading.querySelector<HTMLAnchorElement>(':scope > a[id]:not([href])');
+    if (!anchor || !anchor.id || anchor.textContent?.trim() || anchor.children.length) return;
+    let node: ChildNode | null = heading.firstChild;
+    while (node && node !== anchor) {
+      if (node.nodeType !== 3 || node.textContent?.trim()) return;
+      node = node.nextSibling;
+    }
+    if (node !== anchor) return;
+    heading.id = anchor.id;
+    anchor.remove();
+  });
   template.content.querySelectorAll('p').forEach((p) => {
     const match = [...p.classList].join(' ').match(/(?:^|\s)(?:Mso)?Heading([1-6])(?:\s|$)/i);
     if (match) { const h = document.createElement(`h${match[1]}`); if (sourceAttribute && p.hasAttribute(sourceAttribute)) h.setAttribute(sourceAttribute, p.getAttribute(sourceAttribute)!); h.append(...p.childNodes); p.replaceWith(h); }

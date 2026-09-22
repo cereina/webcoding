@@ -69,3 +69,21 @@ test('converts a minimal real DOCX archive', async () => {
  assert.equal(doc.querySelector('p strong').textContent, 'Bold text');
 });
 
+
+test('moves empty Word bookmark anchors onto headings without changing internal links', () => {
+ const html='<p>L’<a href="#abeille">abeille</a> est dans sa maison.</p><h2><a id="abeille"></a>Abeille</h2><p>Text</p>';
+ const doc=parse(cleanHtml(html));
+ assert.equal(doc.querySelector('h2').id,'abeille');
+ assert.equal(doc.querySelector('h2 > a[id]'),null);
+ assert.equal(doc.querySelector('p a').getAttribute('href'),'#abeille');
+});
+test('keeps ambiguous bookmark anchors when a heading already has a different ID', () => {
+ const doc=parse(cleanHtml('<h2 id="existing"><a id="bookmark"></a>Heading</h2>'));
+ assert.equal(doc.querySelector('h2').id,'existing');
+ assert.equal(doc.querySelector('h2 > a').id,'bookmark');
+});
+test('keeps bookmark anchors that are not the first meaningful heading content', () => {
+ const doc=parse(cleanHtml('<h2>Prefix <a id="bookmark"></a>Heading</h2>'));
+ assert.equal(doc.querySelector('h2').hasAttribute('id'),false);
+ assert.equal(doc.querySelector('h2 > a').id,'bookmark');
+});
