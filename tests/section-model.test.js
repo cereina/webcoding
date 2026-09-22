@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 const dom=new JSDOM('');globalThis.document=dom.window.document;globalThis.DOMParser=dom.window.DOMParser;
-const {wrapHeadingSections:wrap}=await import('../section-model.ts');
+const {wrapHeadingSections:wrap,syncExistingHeadingSections:sync}=await import('../section-model.ts');
 const parse=s=>new JSDOM(s).window.document;
 test('nests all heading levels with content and siblings',()=>{
  const source='<p>Intro</p><h1>A</h1><p>A text</p><h2>B</h2><h3>C</h3><h4>D</h4><h5>E</h5><h6>F</h6><p>F text</p><h2>G</h2><h1>H</h1>';
@@ -21,3 +21,24 @@ test('handles skipped levels and complete HTML documents',()=>{
  assert.equal(doc.title,'Keep');assert.equal(doc.documentElement.lang,'fr');assert.ok(doc.querySelector('main > section > section > h4'));assert.ok(doc.getElementById('a'));
 });
 
+
+test('promotes an existing nested section when its heading level is promoted',()=>{
+ const source='<section id="a"><h2>A</h2><p>A text</p><section id="b" class="keep"><h2>B</h2><p>B text</p></section></section>';
+ const doc=parse(sync(source));
+ assert.equal(doc.querySelector('#a > #b'),null);
+ assert.equal(doc.querySelector('body > #b')?.className,'keep');
+ assert.equal(doc.querySelector('#b > h2')?.textContent,'B');
+});
+
+test('nests an existing sibling section when its heading level is demoted',()=>{
+ const source='<section id="a"><h2>A</h2><p>A text</p></section><section id="b" data-keep="yes"><h3>B</h3><p>B text</p></section>';
+ const doc=parse(sync(source));
+ assert.equal(doc.querySelector('body > #b'),null);
+ assert.equal(doc.querySelector('#a > #b')?.getAttribute('data-keep'),'yes');
+ assert.equal(doc.querySelector('#b > h3')?.textContent,'B');
+});
+
+test('does not create sections when synchronizing a document without heading sections',()=>{
+ const source='<h2>A</h2><h3>B</h3>';
+ assert.equal(sync(source),source);
+});

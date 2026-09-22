@@ -1,5 +1,6 @@
 import { getElement } from './dom.ts';
 import { applyHeadingDraft, createHeadingDraft, headingWarnings, type HeadingDraft } from './heading-model.ts';
+import { hasHeadingSections, syncExistingHeadingSections } from './section-model.ts';
 import './heading-editor.css';
 
 interface HeadingEditorOptions {
@@ -96,8 +97,15 @@ export function setupHeadingEditor({ getSource, commit }: HeadingEditorOptions):
       return;
     }
     try {
-      const output = applyHeadingDraft(draft);
-      commit(output, 'Heading structure updated. IDs, bookmarks and links were preserved. Use Undo to restore the previous document.');
+      let output = applyHeadingDraft(draft);
+      const sectionsUpdated = hasHeadingSections(draft.source);
+      if (sectionsUpdated) output = syncExistingHeadingSections(output);
+      commit(
+        output,
+        sectionsUpdated
+          ? 'Heading structure and existing section hierarchy updated. IDs, bookmarks, links and section attributes were preserved. Use Undo to restore the previous document.'
+          : 'Heading structure updated. IDs, bookmarks and links were preserved. Use Undo to restore the previous document.'
+      );
       dialog.close();
     } catch {
       getElement('heading-status', 'p').textContent = 'The heading structure could not be updated safely. Your document is unchanged.';
