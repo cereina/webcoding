@@ -77,6 +77,25 @@ export function createTocDraft(source: string): TocDraft {
   headings.sort((a, b) => a.key - b.key);
   return { source, headings, placement: existing.length ? 'Replace the existing table of contents' : first ? 'After the opening heading' : 'At the top of the document' };
 }
+export function selectHeadingWithDescendants(draft: TocDraft, key: number, selected: boolean): void {
+  const headings = [...draft.headings].sort((a, b) => a.key - b.key);
+  const index = headings.findIndex(heading => heading.key === key);
+  if (index < 0) return;
+  const target = headings[index]!;
+  target.selected = selected;
+  if (!selected) return;
+  for (let i = index + 1; i < headings.length; i++) {
+    const heading = headings[i]!;
+    if (heading.level <= target.level) break;
+    heading.selected = true;
+  }
+}
+
+export function selectTocFromLevel(draft: TocDraft, minimumLevel: number): void {
+  if (!Number.isInteger(minimumLevel) || minimumLevel < 1 || minimumLevel > 6) throw new Error('Heading level must be between H1 and H6.');
+  draft.headings.forEach(heading => { heading.selected = heading.level >= minimumLevel; });
+}
+
 export function renderToc(draft: TocDraft, language: string): string {
   const occupied = new Set(idCounts(tree(draft.source)).keys());
   draft.headings.forEach(heading => occupied.add(heading.id));

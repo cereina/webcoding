@@ -1,5 +1,5 @@
 import { getElement } from './dom.ts';
-import { createTocDraft, renderToc, applyToc } from './toc-model.ts';
+import { createTocDraft, renderToc, applyToc, selectHeadingWithDescendants, selectTocFromLevel } from './toc-model.ts';
 import './toc-editor.css';
 
 interface TocEditorOptions {
@@ -25,7 +25,7 @@ export function setupTocEditor({ getSource, getLanguage, commit }: TocEditorOpti
       const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = heading.selected;
       const level = document.createElement('span'); level.className = 'level-badge'; level.textContent = `H${heading.level}`;
       const text = document.createElement('span'); text.textContent = heading.text;
-      checkbox.addEventListener('change', () => { heading.selected = checkbox.checked; update(); });
+      checkbox.addEventListener('change', () => { selectHeadingWithDescendants(draft, heading.key, checkbox.checked); choices(); });
       label.append(checkbox, level, text); return label;
     });
     getElement('toc-headings', 'div').replaceChildren(...rows); update();
@@ -39,7 +39,7 @@ export function setupTocEditor({ getSource, getLanguage, commit }: TocEditorOpti
   };
   getElement('toc-all', 'button').onclick = () => { draft.headings.forEach(h => { h.selected = true; }); choices(); };
   getElement('toc-none', 'button').onclick = () => { draft.headings.forEach(h => { h.selected = false; }); choices(); };
-  getElement('toc-h2', 'button').onclick = () => { draft.headings.forEach(h => { h.selected = h.level === 2; }); choices(); };
+  document.querySelectorAll<HTMLButtonElement>('[data-toc-min-level]').forEach(button => button.onclick = () => { selectTocFromLevel(draft, Number(button.dataset.tocMinLevel)); choices(); });
   getElement('toc-close', 'button').onclick = getElement('toc-cancel', 'button').onclick = () => dialog.close();
   getElement('toc-insert', 'button').onclick = () => {
     if (getSource() !== draft.source) { getElement('toc-status', 'p').textContent = 'The document changed. Close and reopen this dialog before saving.'; return; }
