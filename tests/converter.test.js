@@ -103,3 +103,13 @@ test('leaves duplicate bookmark destinations untouched instead of guessing', () 
  assert.equal(doc.querySelector('h2').id,'abeille');
  assert.equal(doc.querySelector('h2 > a').id,'_Abeille');
 });
+
+test('normalizes smart apostrophes only in text content', () => {
+ const html='<p title="L’abeille">L’abeille et l‘autre</p><a href="#l’abeille">L’abeille</a><h2 id="l’abeille">Titre</h2>';
+ const doc=parse(cleanHtml(html));
+ assert.equal(doc.querySelector('p').textContent,"L'abeille et l'autre");
+ assert.equal(doc.querySelector('a').textContent,"L'abeille");
+ assert.equal(doc.querySelector('p').getAttribute('title'),'L’abeille');
+ assert.equal(doc.querySelector('a').getAttribute('href'),'#l’abeille');
+ assert.equal(doc.querySelector('h2').id,'l’abeille');
+});
