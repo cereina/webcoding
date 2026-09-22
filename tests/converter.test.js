@@ -6,7 +6,7 @@ import mammoth from 'mammoth';
 const dom = new JSDOM('');
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
-const { cleanHtml, plainTextToHtml, inspectHtml, buildPage } = await import('../converter.ts');
+const { cleanHtml, analyzeCleanup, plainTextToHtml, inspectHtml, buildPage } = await import('../converter.ts');
 const parse = (html) => new JSDOM(html).window.document;
 test('sanitizes executable markup, event handlers, styles and unsafe URLs', () => {
  const doc = parse(cleanHtml('<script>alert(1)</script><style>body{display:none}</style><iframe src="https://example.com"></iframe><p onclick="alert(1)" style="color:red">Safe</p><a href="javascript:alert(1)">Link</a>'));
@@ -112,4 +112,23 @@ test('normalizes smart apostrophes only in text content', () => {
  assert.equal(doc.querySelector('p').getAttribute('title'),'L’abeille');
  assert.equal(doc.querySelector('a').getAttribute('href'),'#l’abeille');
  assert.equal(doc.querySelector('h2').id,'l’abeille');
+});
+
+test('reports cleanup changes before applying and returns prepared cleaned HTML', () => {
+ const html='<p class="MsoNormal" style="color:red">L’abeille</p><h2 id="abeille"><a id="_Abeille"></a>Abeille</h2><p><a href="#abeille">Jump</a></p>';
+ const report=analyzeCleanup(html);
+ assert.ok(report.totalChanges >= 4);
+ assert.ok(report.changes.some(item=>item.label==='Word-specific classes removed'));
+ assert.ok(report.changes.some(item=>item.label==='Inline styles removed'));
+ assert.ok(report.changes.some(item=>item.label==='Smart apostrophes converted'));
+ assert.ok(report.changes.some(item=>item.label==='Word bookmarks normalized'));
+ const doc=parse(report.cleanedHtml);
+ assert.equal(doc.querySelector('p').textContent,"L'abeille");
+ assert.equal(doc.querySelector('h2').id,'_Abeille');
+ assert.equal(doc.querySelector('a[href="#_Abeille"]').textContent,'Jump');
+});
+test('cleanup report surfaces duplicate IDs and broken internal links for review', () => {
+ const report=analyzeCleanup('<h2 id="same">One</h2><p id="same">Two</p><a href="#missing">Missing</a><a href="#same">Ambiguous</a>');
+ assert.ok(report.warnings.some(item=>item.label==='Duplicate IDs found' && item.count===1));
+ assert.ok(report.warnings.some(item=>item.label==='Internal links need review' && item.count===2));
 });

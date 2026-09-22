@@ -2,6 +2,30 @@ import { isNoteTarget } from './footnotes.ts';
 import DOMPurify from 'dompurify';
 const escapeHtml = (value: unknown): string => String(value).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'} as Record<string, string>)[c] ?? c);
 
+export interface CleanupReportItem { label: string; count: number; details: string[]; }
+export interface CleanupReport { cleanedHtml: string; changes: CleanupReportItem[]; warnings: CleanupReportItem[]; totalChanges: number; }
+
+function idCountsFor(root: ParentNode): Map<string, number> {
+  const counts = new Map<string, number>();
+  root.querySelectorAll<HTMLElement>('[id]').forEach(element => {
+    if (element.id) counts.set(element.id, (counts.get(element.id) ?? 0) + 1);
+  });
+  return counts;
+}
+function headingBookmark(heading: HTMLHeadingElement): HTMLAnchorElement | null {
+  const anchor = heading.querySelector<HTMLAnchorElement>(':scope > a[id]:not([href])');
+  if (!anchor || !anchor.id || anchor.textContent?.trim() || anchor.children.length) return null;
+  let node: ChildNode | null = heading.firstChild;
+  while (node && node !== anchor) {
+    if (node.nodeType !== 3 || node.textContent?.trim()) return null;
+    node = node.nextSibling;
+  }
+  return node === anchor ? anchor : null;
+}
+function decodeFragment(value: string): string {
+  try { return decodeURIComponent(value); } catch { return value; }
+}
+
 export function cleanHtml(input: string, sourceAttribute?: string): string {
   const template = document.createElement('template');
   template.innerHTML = String(input ?? '');
@@ -9,40 +33,30 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     if (!anchor.id) anchor.id = anchor.getAttribute('name') ?? '';
   });
   template.content.querySelectorAll('p').forEach((p) => {
-    const match = [...p.classList].join(' ').match(/(?:^|\\s)(?:Mso)?Heading([1-6])(?:\\s|$)/i);
+    const match = [...p.classList].join(' ').match(/(?:^|\s)(?:Mso)?Heading([1-6])(?:\s|$)/i);
     if (match) { const h = document.createElement(`h${match[1]}`); if (sourceAttribute && p.hasAttribute(sourceAttribute)) h.setAttribute(sourceAttribute, p.getAttribute(sourceAttribute)!); h.append(...p.childNodes); p.replaceWith(h); }
   });
 
   // Word can represent a bookmark as an empty anchor at the start of a heading.
   // Normalize it to one canonical heading ID and redirect local references to that ID.
-  const idCounts = new Map<string, number>();
-  template.content.querySelectorAll<HTMLElement>('[id]').forEach(element => {
-    if (element.id) idCounts.set(element.id, (idCounts.get(element.id) ?? 0) + 1);
-  });
+  const idCounts = idCountsFor(template.content);
   const rewriteIdReferences = (oldId: string, newId: string): void => {
     template.content.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach(link => {
       const href = link.getAttribute('href') ?? '';
-      let target = href.slice(1);
-      try { target = decodeURIComponent(target); } catch { /* Keep malformed fragments unchanged. */ }
+      const target = decodeFragment(href.slice(1));
       if (target === oldId) link.setAttribute('href', `#${encodeURIComponent(newId)}`);
     });
     for (const attribute of ['aria-labelledby', 'aria-describedby', 'headers']) {
       template.content.querySelectorAll<HTMLElement>(`[${attribute}]`).forEach(element => {
-        const ids = (element.getAttribute(attribute) ?? '').trim().split(/\\s+/).filter(Boolean);
+        const ids = (element.getAttribute(attribute) ?? '').trim().split(/\s+/).filter(Boolean);
         if (!ids.includes(oldId)) return;
         element.setAttribute(attribute, ids.map(id => id === oldId ? newId : id).join(' '));
       });
     }
   };
   template.content.querySelectorAll<HTMLHeadingElement>('h1,h2,h3,h4,h5,h6').forEach(heading => {
-    const anchor = heading.querySelector<HTMLAnchorElement>(':scope > a[id]:not([href])');
-    if (!anchor || !anchor.id || anchor.textContent?.trim() || anchor.children.length) return;
-    let node: ChildNode | null = heading.firstChild;
-    while (node && node !== anchor) {
-      if (node.nodeType !== 3 || node.textContent?.trim()) return;
-      node = node.nextSibling;
-    }
-    if (node !== anchor) return;
+    const anchor = headingBookmark(heading);
+    if (!anchor) return;
 
     const bookmarkId = anchor.id;
     const headingId = heading.id;
@@ -88,6 +102,133 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
   });
   template.content.querySelectorAll('span').forEach((span) => { if (!span.attributes.length) span.replaceWith(...span.childNodes); });
   return template.innerHTML.trim();
+}
+
+export function analyzeCleanup(input: string): CleanupReport {
+  const source = document.createElement('template');
+  source.innerHTML = String(input ?? '');
+  const changes: CleanupReportItem[] = [];
+  const warnings: CleanupReportItem[] = [];
+
+  const wordClasses: string[] = [];
+  source.content.querySelectorAll<HTMLElement>('[class]').forEach(element => {
+    [...element.classList].filter(name => /^(?:Mso|WordSection)/i.test(name)).forEach(name => {
+      if (wordClasses.length < 8) wordClasses.push(`.${name} on <${element.tagName.toLowerCase()}>`);
+    });
+  });
+  const wordClassCount = [...source.content.querySelectorAll<HTMLElement>('[class]')]
+    .reduce((count, element) => count + [...element.classList].filter(name => /^(?:Mso|WordSection)/i.test(name)).length, 0);
+  if (wordClassCount) changes.push({ label: 'Word-specific classes removed', count: wordClassCount, details: wordClasses });
+
+  const styleElements = [...source.content.querySelectorAll<HTMLElement>('[style]')];
+  if (styleElements.length) changes.push({
+    label: 'Inline styles removed',
+    count: styleElements.length,
+    details: styleElements.slice(0, 8).map(element => `<${element.tagName.toLowerCase()}> style="${(element.getAttribute('style') ?? '').slice(0, 90)}"`)
+  });
+
+  const unsafeElements = [...source.content.querySelectorAll('script,style,iframe,object,embed,form,input,button')];
+  if (unsafeElements.length) changes.push({
+    label: 'Unsafe or unsupported elements removed',
+    count: unsafeElements.length,
+    details: unsafeElements.slice(0, 8).map(element => `<${element.tagName.toLowerCase()}>`)
+  });
+
+  const unsafeLinks = [...source.content.querySelectorAll<HTMLAnchorElement>('a[href]')].filter(link => {
+    const href = (link.getAttribute('href') ?? '').trim();
+    return /^[a-z][a-z0-9+.-]*:/i.test(href) && !/^(?:https?:|mailto:|tel:)/i.test(href);
+  });
+  if (unsafeLinks.length) changes.push({
+    label: 'Unsafe link destinations removed',
+    count: unsafeLinks.length,
+    details: unsafeLinks.slice(0, 8).map(link => link.getAttribute('href') ?? '')
+  });
+
+  let apostropheCount = 0;
+  const apostropheDetails: string[] = [];
+  const walker = document.createTreeWalker(source.content, 4);
+  while (walker.nextNode()) {
+    const text = walker.currentNode.textContent ?? '';
+    const matches = text.match(/[‘’]/g);
+    if (!matches) continue;
+    apostropheCount += matches.length;
+    if (apostropheDetails.length < 8) {
+      const before = text.trim().replace(/\s+/g, ' ').slice(0, 90);
+      apostropheDetails.push(`${before} → ${before.replace(/[‘’]/g, "'")}`);
+    }
+  }
+  if (apostropheCount) changes.push({ label: 'Smart apostrophes converted', count: apostropheCount, details: apostropheDetails });
+
+  // Mirror the heading conversion used by cleanHtml before checking bookmark safety.
+  source.content.querySelectorAll('p').forEach(p => {
+    const match = [...p.classList].join(' ').match(/(?:^|\s)(?:Mso)?Heading([1-6])(?:\s|$)/i);
+    if (match) {
+      const h = document.createElement(`h${match[1]}`);
+      h.append(...p.childNodes);
+      p.replaceWith(h);
+    }
+  });
+  source.content.querySelectorAll<HTMLAnchorElement>('a[name]').forEach(anchor => {
+    if (!anchor.id) anchor.id = anchor.getAttribute('name') ?? '';
+  });
+
+  const sourceIds = idCountsFor(source.content);
+  let normalizedBookmarks = 0;
+  const bookmarkDetails: string[] = [];
+  let ambiguousBookmarks = 0;
+  const ambiguousDetails: string[] = [];
+  source.content.querySelectorAll<HTMLHeadingElement>('h1,h2,h3,h4,h5,h6').forEach(heading => {
+    const anchor = headingBookmark(heading);
+    if (!anchor) return;
+    const bookmarkId = anchor.id;
+    const headingId = heading.id;
+    const safeSameId = headingId === bookmarkId && (sourceIds.get(bookmarkId) ?? 0) === 2;
+    const safeNewId = headingId !== bookmarkId && (sourceIds.get(bookmarkId) ?? 0) === 1 && (!headingId || (sourceIds.get(headingId) ?? 0) === 1);
+    if (safeSameId || safeNewId) {
+      normalizedBookmarks++;
+      if (bookmarkDetails.length < 8) {
+        const name = (heading.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 60);
+        bookmarkDetails.push(headingId && headingId !== bookmarkId
+          ? `${heading.tagName} "${name}": #${headingId} → #${bookmarkId}`
+          : `${heading.tagName} "${name}": bookmark #${bookmarkId} moved onto heading`);
+      }
+    } else {
+      ambiguousBookmarks++;
+      if (ambiguousDetails.length < 8) ambiguousDetails.push(`${heading.tagName}: #${bookmarkId} could not be normalized safely`);
+    }
+  });
+  if (normalizedBookmarks) changes.push({ label: 'Word bookmarks normalized', count: normalizedBookmarks, details: bookmarkDetails });
+  if (ambiguousBookmarks) warnings.push({ label: 'Bookmarks need review', count: ambiguousBookmarks, details: ambiguousDetails });
+
+  const cleanedHtml = cleanHtml(input);
+  const cleaned = document.createElement('template');
+  cleaned.innerHTML = cleanedHtml;
+  const cleanedIds = idCountsFor(cleaned.content);
+
+  const duplicates = [...cleanedIds.entries()].filter(([, count]) => count > 1);
+  if (duplicates.length) warnings.push({
+    label: 'Duplicate IDs found',
+    count: duplicates.length,
+    details: duplicates.slice(0, 8).map(([id, count]) => `#${id} appears ${count} times`)
+  });
+
+  const broken: string[] = [];
+  cleaned.content.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach(link => {
+    const target = decodeFragment((link.getAttribute('href') ?? '').slice(1));
+    if (!target) return;
+    const matches = cleanedIds.get(target) ?? 0;
+    if (matches !== 1 && broken.length < 8) {
+      const text = (link.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 60) || target;
+      broken.push(matches ? `"${text}" → #${target} is ambiguous` : `"${text}" → #${target} has no destination`);
+    }
+  });
+  const brokenCount = [...cleaned.content.querySelectorAll<HTMLAnchorElement>('a[href^="#"]')].filter(link => {
+    const target = decodeFragment((link.getAttribute('href') ?? '').slice(1));
+    return target && (cleanedIds.get(target) ?? 0) !== 1;
+  }).length;
+  if (brokenCount) warnings.push({ label: 'Internal links need review', count: brokenCount, details: broken });
+
+  return { cleanedHtml, changes, warnings, totalChanges: changes.reduce((sum, item) => sum + item.count, 0) };
 }
 
 export function plainTextToHtml(text: string): string {
