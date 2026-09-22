@@ -26,6 +26,44 @@ function decodeFragment(value: string): string {
   try { return decodeURIComponent(value); } catch { return value; }
 }
 
+const EMPTY_ELEMENT_EXCEPTIONS = new Set(['BR', 'HR', 'IMG', 'COL', 'TD', 'TH']);
+
+function isVisuallyEmpty(element: Element): boolean {
+  if (EMPTY_ELEMENT_EXCEPTIONS.has(element.tagName)) return false;
+  if (element.id) return false;
+  if (element.children.length) return false;
+  return (element.textContent ?? '').replace(/[\s\u00a0\u200b\ufeff]/g, '') === '';
+}
+
+function removeEmptyElements(root: ParentNode): { count: number; details: string[] } {
+  let count = 0;
+  const details: string[] = [];
+  let removed = true;
+  while (removed) {
+    removed = false;
+    const elements = [...root.querySelectorAll('*')].reverse();
+    for (const element of elements) {
+      if (!isVisuallyEmpty(element)) continue;
+      if (details.length < 8) details.push(`<${element.tagName.toLowerCase()}></${element.tagName.toLowerCase()}>`);
+      element.remove();
+      count++;
+      removed = true;
+    }
+  }
+  return { count, details };
+}
+
+function unwrapStrongFromHeadings(root: ParentNode): { count: number; details: string[] } {
+  const strong = [...root.querySelectorAll<HTMLElement>('h1 strong,h2 strong,h3 strong,h4 strong,h5 strong,h6 strong')];
+  const details = strong.slice(0, 8).map(element => {
+    const heading = element.closest('h1,h2,h3,h4,h5,h6');
+    const label = heading?.tagName.toLowerCase() ?? 'heading';
+    return `<${label}><strong>${(element.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 60)}</strong></${label}>`;
+  });
+  strong.forEach(element => element.replaceWith(...element.childNodes));
+  return { count: strong.length, details };
+}
+
 export function cleanHtml(input: string, sourceAttribute?: string): string {
   const template = document.createElement('template');
   template.innerHTML = String(input ?? '');
@@ -170,6 +208,20 @@ export function analyzeCleanup(input: string): CleanupReport {
   });
   source.content.querySelectorAll<HTMLAnchorElement>('a[name]').forEach(anchor => {
     if (!anchor.id) anchor.id = anchor.getAttribute('name') ?? '';
+  });
+
+  const headingStrong = unwrapStrongFromHeadings(source.content);
+  if (headingStrong.count) changes.push({
+    label: 'Strong tags removed from headings',
+    count: headingStrong.count,
+    details: headingStrong.details
+  });
+
+  const emptyElements = removeEmptyElements(source.content);
+  if (emptyElements.count) changes.push({
+    label: 'Empty elements removed',
+    count: emptyElements.count,
+    details: emptyElements.details
   });
 
   const sourceIds = idCountsFor(source.content);
