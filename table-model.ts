@@ -191,3 +191,96 @@ export function associateCellHeaders(draft: TableDraft, item: TableItem, row: nu
   } else cell.removeAttribute('headers');
   item.dirty = true;
 }
+
+
+const TABLE_STRUCTURE_TAGS = new Set(['TABLE','CAPTION','COLGROUP','COL','THEAD','TBODY','TFOOT','TR','TH','TD']);
+const TABLE_SEMANTIC_ATTRIBUTES = new Set([
+  'id','headers','scope','rowspan','colspan','span','abbr',
+  'aria-label','aria-labelledby','aria-describedby','lang','dir'
+]);
+
+function belongsToTable(element: Element, table: HTMLTableElement): boolean {
+  return element.closest('table') === table;
+}
+
+function unwrapPreservingReadableText(element: Element): void {
+  if (element.tagName === 'IMG') {
+    const alt = element.getAttribute('alt')?.trim();
+    element.replaceWith(document.createTextNode(alt ? `[${alt}]` : ''));
+    return;
+  }
+  if (element.tagName === 'BR') {
+    element.replaceWith(document.createTextNode(' '));
+    return;
+  }
+  element.replaceWith(...element.childNodes);
+}
+
+/** Remove paragraph wrappers from the active table without touching nested tables. */
+export function removeTableParagraphs(item: TableItem): number {
+  const paragraphs = [...item.table.querySelectorAll('p')].filter(p => belongsToTable(p, item.table));
+  for (const paragraph of paragraphs) {
+    const needsSpace = !!paragraph.previousSibling || !!paragraph.nextSibling;
+    const nodes = [...paragraph.childNodes];
+    if (needsSpace && nodes.length) nodes.push(document.createTextNode(' '));
+    paragraph.replaceWith(...nodes);
+  }
+  if (paragraphs.length) {
+    item.table.normalize();
+    item.dirty = true;
+  }
+  return paragraphs.length;
+}
+
+/**
+ * Keep only native table-structure elements in the active table.
+ * Formatting, links, and other wrappers are removed while their readable text is retained.
+ * Nested tables are left for their own table-editor entry.
+ */
+export function keepOnlyTableTags(item: TableItem): number {
+  const elements = [...item.table.querySelectorAll('*')]
+    .filter(element => belongsToTable(element, item.table) && !TABLE_STRUCTURE_TAGS.has(element.tagName))
+    .reverse();
+  for (const element of elements) unwrapPreservingReadableText(element);
+  if (elements.length) {
+    item.table.normalize();
+    item.dirty = true;
+  }
+  return elements.length;
+}
+
+/**
+ * Remove presentation/import attributes while retaining attributes required for
+ * table structure, explicit header relationships, language, and accessible names.
+ */
+export function removeUnnecessaryTableAttributes(item: TableItem): number {
+  let removed = 0;
+  const elements = [item.table, ...item.table.querySelectorAll('*')]
+    .filter(element => element === item.table || belongsToTable(element, item.table));
+  for (const element of elements) {
+    for (const attribute of [...element.attributes]) {
+      const name = attribute.name.toLowerCase();
+      if (!TABLE_SEMANTIC_ATTRIBUTES.has(name)) {
+        element.removeAttribute(attribute.name);
+        removed++;
+      }
+    }
+    if (element.tagName === 'TH' || element.tagName === 'TD') {
+      const cell = element as HTMLTableCellElement;
+      if (cell.colSpan === 1 && cell.hasAttribute('colspan')) { cell.removeAttribute('colspan'); removed++; }
+      if (cell.rowSpan === 1 && cell.hasAttribute('rowspan')) { cell.removeAttribute('rowspan'); removed++; }
+    }
+    if ((element.tagName === 'COL' || element.tagName === 'COLGROUP') && element.getAttribute('span') === '1') {
+      element.removeAttribute('span');
+      removed++;
+    }
+    for (const name of ['id','headers','aria-label','aria-labelledby','aria-describedby','lang','dir']) {
+      if (element.hasAttribute(name) && !(element.getAttribute(name) ?? '').trim()) {
+        element.removeAttribute(name);
+        removed++;
+      }
+    }
+  }
+  if (removed) item.dirty = true;
+  return removed;
+}

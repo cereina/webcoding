@@ -90,6 +90,16 @@ Select a displayed cell in Edit tables (keyboard: focus the cell and press Enter
 
 Add row below, Add column after, Remove row, and Remove column operate on the selected cell in rectangular, unmerged tables without nested tables. At least one row and column remain. For merged or uneven tables, edit individual cell types and choose the headers describing each cell. Explicit associations generate header IDs and headers attributes. Group scopes require suitable existing groups and manual accessibility review. Cancel discards the draft; applied changes support Undo.
 
+## Guided table editing
+
+The visual table editor now supports rectangular multi-cell selection: click the first cell and Shift-click the opposite corner. Use **Merge cells** to combine the full selection in one action. Double-click a cell to edit its text directly in the rendered table.
+
+Cell roles use plain-language choices such as **Column heading**, **Row heading**, and **Heading for a group**. For complex relationships, select a data cell and choose **Choose headings for this cell**, then click the headings that describe it; Maple creates the required IDs and `headers` references automatically and highlights the relationship while you work.
+
+Use **Split cell…** on a merged cell to choose the resulting row and column divisions. Content stays in the top-left resulting cell and the newly created cells start empty. **Undo draft change** reverses individual table-editor changes before anything is applied to the document.
+
+Starting templates are available for simple tables, grouped column headings, and grouped row headings. Templates are added only to the table-editor draft until **Apply changes** is chosen.
+
 ## Merge and split cells
 
 Select a cell in Edit tables, then use Merge with right or Merge with below above the preview. Repeat to extend a merged region. Adjacent cells must align and have the same header type and row group. Both cells' rich content is retained. Split cell restores individual cells and leaves combined content in the first cell; the new cells are empty. Cancel discards draft edits, and Undo restores an applied change. Advanced header relationships are collapsed by default.
