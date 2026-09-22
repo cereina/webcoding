@@ -31,7 +31,7 @@ test('allows embedded raster images and omits remote and SVG images', () => {
  assert.match(doc.body.textContent, /Image omitted: Vector/);
 });
 test('checks heading hierarchy, table headers and link names', () => {
- const messages = inspectHtml('<h1>Title</h1><h3>Skipped</h3><h2></h2><table><tr><td>Cell</td></tr></table><a href="https://example.com">Click here</a><a></a>').map(f => f.message).join('\n');
+ const messages = inspectHtml('<h1>Title</h1><h3>Skipped</h3><h2></h2><table><tr><td>Cell</td></tr></table><a href="https://example.com">Click here</a><a href="https://example.com"><img src="data:image/png;base64,aGVsbG8=" alt=""></a><a>No destination</a>').map(f => f.message).join('\n');
  for (const pattern of [/skips from h1 to h3/, /no header cells/, /more descriptive name/, /no accessible text/, /no valid destination/]) assert.match(messages, pattern);
  assert.doesNotMatch(messages, /h2 heading is empty/);
  assert.match(inspectHtml('<p>Text</p>')[0].message, /No main heading/);
