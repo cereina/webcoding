@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {JSDOM} from 'jsdom';
 const dom=new JSDOM('');globalThis.document=dom.window.document;globalThis.DOMParser=dom.window.DOMParser;
-const {wrapHeadingSections:wrap,syncExistingHeadingSections:sync}=await import('../section-model.ts');
+const {wrapHeadingSections:wrap,syncExistingHeadingSections:sync,removeAllSections:remove}=await import('../section-model.ts');
 const parse=s=>new JSDOM(s).window.document;
 test('nests all heading levels with content and siblings',()=>{
  const source='<p>Intro</p><h1>A</h1><p>A text</p><h2>B</h2><h3>C</h3><h4>D</h4><h5>E</h5><h6>F</h6><p>F text</p><h2>G</h2><h1>H</h1>';
@@ -41,4 +41,24 @@ test('nests an existing sibling section when its heading level is demoted',()=>{
 test('does not create sections when synchronizing a document without heading sections',()=>{
  const source='<h2>A</h2><h3>B</h3>';
  assert.equal(sync(source),source);
+});
+
+test('removes all section tags while preserving their contents',()=>{
+ const source='<section id="outer"><h2 id="a">A</h2><p>Text</p><section class="inner"><h3>B</h3><p><a href="#a">Jump</a></p></section></section>';
+ const result=remove(source);
+ assert.equal(result.count,2);
+ assert.equal(result.html,'<h2 id="a">A</h2><p>Text</p><h3>B</h3><p><a href="#a">Jump</a></p>');
+});
+
+test('remove sections is a no-op when the document has no section tags',()=>{
+ const source='<h2>A</h2><p>Text</p>';
+ assert.deepEqual(remove(source),{html:source,count:0});
+});
+
+test('removes section tags from a complete page without removing surrounding markup',()=>{
+ const source='<!doctype html><html lang="en"><head><title>T</title></head><body><main><section data-x="1"><h2>A</h2></section></main></body></html>';
+ const result=remove(source);
+ assert.equal(result.count,1);
+ assert.ok(result.html.includes('<main><h2>A</h2></main>'));
+ assert.ok(result.html.startsWith('<!doctype html>'));
 });
