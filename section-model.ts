@@ -1,4 +1,53 @@
 import { formatHtml } from './formatter.ts';
+import { parse, parseFragment, type DefaultTreeAdapterTypes } from 'parse5';
+
+type ParseNode = DefaultTreeAdapterTypes.Node;
+type ParseElement = DefaultTreeAdapterTypes.Element;
+
+function isParseElement(node: ParseNode): node is ParseElement {
+  return 'tagName' in node;
+}
+
+function parseChildren(node: ParseNode): ParseNode[] {
+  return 'childNodes' in node ? node.childNodes : [];
+}
+
+export interface RemoveSectionsResult {
+  html: string;
+  count: number;
+}
+
+/** Remove only section start/end tags while preserving their inner source exactly. */
+export function removeAllSections(source: string): RemoveSectionsResult {
+  const fullPage = /^\s*(?:<!doctype\s|<html[\s>])/i.test(source);
+  const root = fullPage
+    ? parse(source, { sourceCodeLocationInfo: true })
+    : parseFragment(source, { sourceCodeLocationInfo: true });
+  const patches: { start: number; end: number }[] = [];
+  let count = 0;
+
+  function walk(node: ParseNode): void {
+    if (isParseElement(node) && node.tagName === 'section') {
+      const location = node.sourceCodeLocation;
+      if (location?.startTag) {
+        patches.push({ start: location.startTag.startOffset, end: location.startTag.endOffset });
+        count++;
+      }
+      if (location?.endTag) {
+        patches.push({ start: location.endTag.startOffset, end: location.endTag.endOffset });
+      }
+    }
+    parseChildren(node).forEach(walk);
+  }
+  walk(root);
+
+  if (!patches.length) return { html: source, count: 0 };
+  let html = source;
+  patches.sort((a, b) => b.start - a.start).forEach(patch => {
+    html = html.slice(0, patch.start) + html.slice(patch.end);
+  });
+  return { html, count };
+}
 
 const level = (node: Node): number =>
   node.nodeType === 1 && /^H[1-6]$/.test((node as Element).tagName)
