@@ -1,8 +1,3 @@
-import { parse, parseFragment, type DefaultTreeAdapterTypes } from 'parse5';
-
-type Node = DefaultTreeAdapterTypes.Node;
-type Element = DefaultTreeAdapterTypes.Element;
-
 export interface HeadingItem {
   key: number;
   text: string;
@@ -10,57 +5,86 @@ export interface HeadingItem {
   level: number;
   startTagStart: number;
   startTagEnd: number;
-  endTagStart?: number;
-  endTagEnd?: number;
+  endTagStart: number;
+  endTagEnd: number;
 }
 export interface HeadingDraft { source: string; headings: HeadingItem[]; hasManagedToc: boolean; }
 export interface HeadingWarning { key?: number; message: string; }
 
-const isElement = (node: Node): node is Element => 'tagName' in node;
-const children = (node: Node): Node[] => 'childNodes' in node ? node.childNodes : [];
-const attribute = (element: Element, name: string): string | undefined => element.attrs.find(item => item.name === name)?.value;
-const managedToc = (node: Node): node is Element => isElement(node) && node.tagName === 'nav' && attribute(node, 'data-maple-toc') === 'true';
-
-function tree(source: string): Node {
-  return /^\s*(?:<!doctype\s|<html[\s>])/i.test(source)
-    ? parse(source, { sourceCodeLocationInfo: true })
-    : parseFragment(source, { sourceCodeLocationInfo: true });
+interface HeadingRange {
+  level: number;
+  startTagStart: number;
+  startTagEnd: number;
+  endTagStart: number;
+  endTagEnd: number;
 }
-function textContent(node: Node): string {
-  if ('value' in node) return node.value;
-  if (isElement(node) && ['script', 'style'].includes(node.tagName)) return '';
-  return children(node).map(textContent).join('');
+
+function headingRanges(source: string): HeadingRange[] {
+  const ranges: HeadingRange[] = [];
+  const startPattern = /<h([1-6])\b[^>]*>/gi;
+  let start: RegExpExecArray | null;
+  while ((start = startPattern.exec(source))) {
+    const level = Number(start[1]);
+    const endPattern = new RegExp(`<\\/h${level}\\s*>`, 'gi');
+    endPattern.lastIndex = startPattern.lastIndex;
+    const end = endPattern.exec(source);
+    if (!end) continue;
+    ranges.push({
+      level,
+      startTagStart: start.index,
+      startTagEnd: start.index + start[0].length,
+      endTagStart: end.index,
+      endTagEnd: end.index + end[0].length,
+    });
+    startPattern.lastIndex = end.index + end[0].length;
+  }
+  return ranges;
+}
+
+function parsedHeadings(source: string): { element: HTMLHeadingElement; text: string; level: number; managed: boolean }[] {
+  const fullPage = /^\s*(?:<!doctype\s|<html[\s>])/i.test(source);
+  let root: ParentNode;
+  if (fullPage) {
+    root = new DOMParser().parseFromString(source, 'text/html');
+  } else {
+    const template = document.createElement('template');
+    template.innerHTML = source;
+    root = template.content;
+  }
+  return [...root.querySelectorAll<HTMLHeadingElement>('h1,h2,h3,h4,h5,h6')].map(element => ({
+    element,
+    text: (element.textContent ?? '').replace(/\s+/g, ' ').trim() || '(empty heading)',
+    level: Number(element.tagName[1]),
+    managed: Boolean(element.closest('nav[data-maple-toc="true"]')),
+  }));
 }
 
 export function createHeadingDraft(source: string): HeadingDraft {
-  const root = tree(source);
+  const ranges = headingRanges(source);
+  const parsed = parsedHeadings(source);
   const headings: HeadingItem[] = [];
   let hasManagedToc = false;
 
-  function walk(node: Node): void {
-    if (managedToc(node)) { hasManagedToc = true; return; }
-    if (isElement(node) && /^h[1-6]$/.test(node.tagName)) {
-      const location = node.sourceCodeLocation;
-      const startTag = location?.startTag;
-      if (location && startTag) {
-        const text = textContent(node).replace(/\s+/g, ' ').trim() || '(empty heading)';
-        const level = Number(node.tagName[1]);
-        headings.push({
-          key: location.startOffset,
-          text,
-          originalLevel: level,
-          level,
-          startTagStart: startTag.startOffset,
-          startTagEnd: startTag.endOffset,
-          endTagStart: location.endTag?.startOffset,
-          endTagEnd: location.endTag?.endOffset,
-        });
-      }
+  const count = Math.min(ranges.length, parsed.length);
+  for (let index = 0; index < count; index++) {
+    const range = ranges[index]!;
+    const item = parsed[index]!;
+    if (item.managed) {
+      hasManagedToc = true;
+      continue;
     }
-    children(node).forEach(walk);
+    headings.push({
+      key: range.startTagStart,
+      text: item.text,
+      originalLevel: item.level,
+      level: item.level,
+      startTagStart: range.startTagStart,
+      startTagEnd: range.startTagEnd,
+      endTagStart: range.endTagStart,
+      endTagEnd: range.endTagEnd,
+    });
   }
-  walk(root);
-  headings.sort((a, b) => a.key - b.key);
+
   return { source, headings, hasManagedToc };
 }
 
@@ -87,18 +111,17 @@ export function applyHeadingDraft(draft: HeadingDraft): string {
   for (const heading of draft.headings) {
     if (heading.level === heading.originalLevel) continue;
     if (!Number.isInteger(heading.level) || heading.level < 1 || heading.level > 6) throw new Error('Heading level must be between H1 and H6.');
+
     const startTag = draft.source.slice(heading.startTagStart, heading.startTagEnd);
     const updatedStart = startTag.replace(/^<h[1-6]\b/i, `<h${heading.level}`);
-    if (updatedStart === startTag) throw new Error('Could not safely update a heading start tag.');
-    patches.push({ start: heading.startTagStart, end: heading.startTagEnd, text: updatedStart });
+    const endTag = draft.source.slice(heading.endTagStart, heading.endTagEnd);
+    const updatedEnd = endTag.replace(/^<\/h[1-6]\s*>/i, `</h${heading.level}>`);
 
-    if (heading.endTagStart != null && heading.endTagEnd != null) {
-      const endTag = draft.source.slice(heading.endTagStart, heading.endTagEnd);
-      const updatedEnd = endTag.replace(/^<\/h[1-6]\s*>/i, `</h${heading.level}>`);
-      if (updatedEnd === endTag) throw new Error('Could not safely update a heading end tag.');
-      patches.push({ start: heading.endTagStart, end: heading.endTagEnd, text: updatedEnd });
-    }
+    if (updatedStart === startTag || updatedEnd === endTag) throw new Error('Could not safely update a heading.');
+    patches.push({ start: heading.startTagStart, end: heading.startTagEnd, text: updatedStart });
+    patches.push({ start: heading.endTagStart, end: heading.endTagEnd, text: updatedEnd });
   }
+
   let output = draft.source;
   patches.sort((a, b) => b.start - a.start).forEach(patch => {
     output = output.slice(0, patch.start) + patch.text + output.slice(patch.end);

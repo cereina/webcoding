@@ -75,9 +75,15 @@ export function setupHeadingEditor({ getSource, commit }: HeadingEditorOptions):
   }
 
   getElement('edit-headings', 'button').onclick = () => {
-    draft = createHeadingDraft(getSource());
-    render();
-    dialog.showModal();
+    try {
+      draft = createHeadingDraft(getSource());
+      render();
+      dialog.showModal();
+    } catch (error) {
+      console.error('Heading structure editor could not open.', error);
+      const status = getElement('status', 'p');
+      status.textContent = 'Heading structure editor could not open. Please reload the page and try again.';
+    }
   };
   getElement('heading-close', 'button').onclick = getElement('heading-cancel', 'button').onclick = () => dialog.close();
   getElement('heading-reset', 'button').onclick = () => {

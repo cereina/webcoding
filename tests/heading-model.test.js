@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+const dom = new JSDOM('');
+globalThis.window = dom.window;
+globalThis.document = dom.window.document;
+globalThis.DOMParser = dom.window.DOMParser;
 const { createHeadingDraft, headingWarnings, applyHeadingDraft } = await import('../heading-model.ts');
 
 test('reads document headings in order and excludes managed TOC headings', () => {
