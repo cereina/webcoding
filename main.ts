@@ -58,6 +58,7 @@ function refresh() {
 }
 function commit(value: string, message?: string) { editor.replace(value); refresh(); if (message) notify(message); }
 setupTableEditor({ getSource: () => editor.value, commit, notify });
+setupHeadingEditor({ getSource: () => editor.value, commit });
 setupTocEditor({ getSource: () => editor.value, getLanguage: () => getElement('language', 'select').value, commit });
 refresh();
 getElement('wrap-sections', 'button').onclick = () => {
