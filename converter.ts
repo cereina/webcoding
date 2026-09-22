@@ -8,8 +8,33 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
   template.content.querySelectorAll<HTMLAnchorElement>('a[name]').forEach(anchor => {
     if (!anchor.id) anchor.id = anchor.getAttribute('name') ?? '';
   });
-  template.content.querySelectorAll<HTMLHeadingElement>('h1,h2,h3,h4,h5,h6').forEach((heading) => {
-    if (heading.id) return;
+  template.content.querySelectorAll('p').forEach((p) => {
+    const match = [...p.classList].join(' ').match(/(?:^|\\s)(?:Mso)?Heading([1-6])(?:\\s|$)/i);
+    if (match) { const h = document.createElement(`h${match[1]}`); if (sourceAttribute && p.hasAttribute(sourceAttribute)) h.setAttribute(sourceAttribute, p.getAttribute(sourceAttribute)!); h.append(...p.childNodes); p.replaceWith(h); }
+  });
+
+  // Word can represent a bookmark as an empty anchor at the start of a heading.
+  // Normalize it to one canonical heading ID and redirect local references to that ID.
+  const idCounts = new Map<string, number>();
+  template.content.querySelectorAll<HTMLElement>('[id]').forEach(element => {
+    if (element.id) idCounts.set(element.id, (idCounts.get(element.id) ?? 0) + 1);
+  });
+  const rewriteIdReferences = (oldId: string, newId: string): void => {
+    template.content.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach(link => {
+      const href = link.getAttribute('href') ?? '';
+      let target = href.slice(1);
+      try { target = decodeURIComponent(target); } catch { /* Keep malformed fragments unchanged. */ }
+      if (target === oldId) link.setAttribute('href', `#${encodeURIComponent(newId)}`);
+    });
+    for (const attribute of ['aria-labelledby', 'aria-describedby', 'headers']) {
+      template.content.querySelectorAll<HTMLElement>(`[${attribute}]`).forEach(element => {
+        const ids = (element.getAttribute(attribute) ?? '').trim().split(/\\s+/).filter(Boolean);
+        if (!ids.includes(oldId)) return;
+        element.setAttribute(attribute, ids.map(id => id === oldId ? newId : id).join(' '));
+      });
+    }
+  };
+  template.content.querySelectorAll<HTMLHeadingElement>('h1,h2,h3,h4,h5,h6').forEach(heading => {
     const anchor = heading.querySelector<HTMLAnchorElement>(':scope > a[id]:not([href])');
     if (!anchor || !anchor.id || anchor.textContent?.trim() || anchor.children.length) return;
     let node: ChildNode | null = heading.firstChild;
@@ -18,12 +43,22 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
       node = node.nextSibling;
     }
     if (node !== anchor) return;
-    heading.id = anchor.id;
+
+    const bookmarkId = anchor.id;
+    const headingId = heading.id;
+
+    if (headingId === bookmarkId) {
+      // Safe legacy duplicate: the heading and its own empty bookmark carry the same ID.
+      if ((idCounts.get(bookmarkId) ?? 0) === 2) anchor.remove();
+      return;
+    }
+    // Do not guess when either destination is duplicated elsewhere in the document.
+    if ((idCounts.get(bookmarkId) ?? 0) !== 1) return;
+    if (headingId && (idCounts.get(headingId) ?? 0) !== 1) return;
+
+    heading.id = bookmarkId;
     anchor.remove();
-  });
-  template.content.querySelectorAll('p').forEach((p) => {
-    const match = [...p.classList].join(' ').match(/(?:^|\s)(?:Mso)?Heading([1-6])(?:\s|$)/i);
-    if (match) { const h = document.createElement(`h${match[1]}`); if (sourceAttribute && p.hasAttribute(sourceAttribute)) h.setAttribute(sourceAttribute, p.getAttribute(sourceAttribute)!); h.append(...p.childNodes); p.replaceWith(h); }
+    if (headingId) rewriteIdReferences(headingId, bookmarkId);
   });
   template.innerHTML = DOMPurify.sanitize(template.innerHTML, {
     ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','hr','div','span','section','article','header','footer','aside','nav','main','strong','b','em','i','u','s','small','sup','sub','mark','abbr','blockquote','cite','address','pre','code','ul','ol','li','dl','dt','dd','a','img','figure','figcaption','table','caption','colgroup','col','thead','tbody','tfoot','tr','th','td','details','summary'],
