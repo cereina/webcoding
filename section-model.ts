@@ -111,6 +111,13 @@ export function hasHeadingSections(source: string): boolean {
   return [...root.querySelectorAll('section')].some(section => headingSectionLevel(section) > 0 && !protectedSection(section));
 }
 
+export function syncExistingHeadingSections(source: string): string {
+  const { page, template, root } = parsedRoot(source);
+  const changed = syncHeadingSectionHierarchy(root);
+  if (!changed) return source;
+  return formatHtml(page ? '<!doctype html>\n' + page.documentElement.outerHTML : template.innerHTML);
+}
+
 /** Group headings inside their existing content container, preserving semantic boundaries. */
 export function wrapHeadingSections(source: string): string {
   const { page, template, root } = parsedRoot(source);
