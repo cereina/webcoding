@@ -1,6 +1,6 @@
 import { assignTableHeaders } from './table-auto-headers.ts';
 import { mergeCells, splitCell, tableGrid } from './table-merge.ts';
-import { editCellText, changeTableStructure, setCellHeader, associateCellHeaders } from './table-model.ts';
+import { editCellText, changeTableStructure, setCellHeader, associateCellHeaders, removeTableParagraphs, keepOnlyTableTags, removeUnnecessaryTableAttributes } from './table-model.ts';
 import { cleanHtml } from './converter.ts';
 import { createTableDraft, setTableCaption, setTableHeaders, applyTableDraft, type TableDraft, type TableItem, type HeaderAxis } from './table-model.ts';
 import { getElement } from './dom.ts';
@@ -285,6 +285,21 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
 
     for(const id of ['row-add','row-remove','column-add','column-remove']) getElement(id,'button').disabled=item.complex||!!item.table.querySelector('table')||(id==='row-remove'&&item.rows.length<=1)||(id==='column-remove'&&item.width<=1);
   }
+
+  const cleanupActions = [
+    ['remove-table-paragraphs', removeTableParagraphs, (count:number) => count ? `Removed ${count} paragraph tag${count===1?'':'s'} from this table. Text was kept.` : 'No paragraph tags found in this table.'],
+    ['keep-table-tags', keepOnlyTableTags, (count:number) => count ? `Removed ${count} non-table tag${count===1?'':'s'} while keeping readable content.` : 'This table already uses table tags only.'],
+    ['clean-table-attributes', removeUnnecessaryTableAttributes, (count:number) => count ? `Removed ${count} unnecessary attribute${count===1?'':'s'}. Table structure and accessibility relationships were kept.` : 'No unnecessary attributes found in this table.'],
+  ] as const;
+  for (const [id, action, message] of cleanupActions) getElement(id,'button').onclick=()=>{
+    if(!draft.tables.length)return;
+    try{
+      let count=0;
+      rememberMutation(()=>{count=action(currentItem());});
+      show(active,true);
+      getElement('cleanup-feedback','p').textContent=message(count);
+    }catch(error){getElement('cleanup-feedback','p').textContent=(error as Error).message;}
+  };
 
   getElement('analyze-table-headers','button').onclick=()=>{
     if(!draft.tables.length) return;
