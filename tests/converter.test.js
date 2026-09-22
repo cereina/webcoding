@@ -15,7 +15,8 @@ test('sanitizes executable markup, event handlers, styles and unsafe URLs', () =
 });
 test('preserves semantic HTML and converts Word heading styles', () => {
  const doc = parse(cleanHtml('<p class="MsoHeading1"><strong>Title</strong></p><p class="Heading2">Section</p><p class="lead MsoNormal"><em>Detail</em></p><ul><li>First</li></ul><table class="table"><caption>Rates</caption><tr><th scope="col">Name</th><td>Value</td></tr></table><a href="https://example.com">Site</a>'));
- assert.equal(doc.querySelector('h1 strong').textContent, 'Title');
+ assert.equal(doc.querySelector('h1 strong'), null);
+ assert.equal(doc.querySelector('h1').textContent, 'Title');
  assert.equal(doc.querySelector('h2').textContent, 'Section');
  assert.equal(doc.querySelector('p').className, 'lead');
  assert.equal(doc.querySelector('em').textContent, 'Detail');
@@ -31,7 +32,8 @@ test('allows embedded raster images and omits remote and SVG images', () => {
 });
 test('checks heading hierarchy, table headers and link names', () => {
  const messages = inspectHtml('<h1>Title</h1><h3>Skipped</h3><h2></h2><table><tr><td>Cell</td></tr></table><a href="https://example.com">Click here</a><a></a>').map(f => f.message).join('\n');
- for (const pattern of [/skips from h1 to h3/, /h2 heading is empty/, /no header cells/, /more descriptive name/, /no accessible text/, /no valid destination/]) assert.match(messages, pattern);
+ for (const pattern of [/skips from h1 to h3/, /no header cells/, /more descriptive name/, /no accessible text/, /no valid destination/]) assert.match(messages, pattern);
+ assert.doesNotMatch(messages, /h2 heading is empty/);
  assert.match(inspectHtml('<p>Text</p>')[0].message, /No main heading/);
  assert.ok(inspectHtml('<h1>One</h1><h1>Two</h1>').some(f => /2 main headings/.test(f.message)));
 });
@@ -131,4 +133,42 @@ test('cleanup report surfaces duplicate IDs and broken internal links for review
  const report=analyzeCleanup('<h2 id="same">One</h2><p id="same">Two</p><a href="#missing">Missing</a><a href="#same">Ambiguous</a>');
  assert.ok(report.warnings.some(item=>item.label==='Duplicate IDs found' && item.count===1));
  assert.ok(report.warnings.some(item=>item.label==='Internal links need review' && item.count===2));
+});
+
+test('removes strong tags from all heading levels but preserves their content', () => {
+ const html='<h1><strong>Main <em>title</em></strong></h1><h2>Before <strong>bold</strong> after</h2><p><strong>Keep paragraph bold</strong></p>';
+ const doc=parse(cleanHtml(html));
+ assert.equal(doc.querySelector('h1 strong,h2 strong'),null);
+ assert.equal(doc.querySelector('h1').innerHTML,'Main <em>title</em>');
+ assert.equal(doc.querySelector('h2').textContent,'Before bold after');
+ assert.equal(doc.querySelector('p strong').textContent,'Keep paragraph bold');
+});
+
+test('removes empty and whitespace-only elements recursively', () => {
+ const html='<div><p></p><p> </p><p>    </p><p>&nbsp;</p><p>\u200B</p><section><span> </span></section><p>Keep</p></div>';
+ const doc=parse(cleanHtml(html));
+ assert.equal(doc.querySelectorAll('p').length,1);
+ assert.equal(doc.querySelector('p').textContent,'Keep');
+ assert.equal(doc.querySelector('section,span'),null);
+});
+
+test('preserves structural empty cells, void elements and bookmark targets', () => {
+ const html='<table><tr><th></th><td> </td></tr></table><br><hr><img src="data:image/png;base64,aGVsbG8=" alt=""><a id="bookmark"></a><p></p>';
+ const doc=parse(cleanHtml(html));
+ assert.ok(doc.querySelector('th'));
+ assert.ok(doc.querySelector('td'));
+ assert.ok(doc.querySelector('br'));
+ assert.ok(doc.querySelector('hr'));
+ assert.ok(doc.querySelector('img'));
+ assert.equal(doc.querySelector('a#bookmark')?.id,'bookmark');
+ assert.equal(doc.querySelector('p'),null);
+});
+
+test('cleanup report includes heading strong removal and empty element removal', () => {
+ const report=analyzeCleanup('<h2><strong>Title</strong></h2><div><p> </p></div>');
+ assert.ok(report.changes.some(item=>item.label==='Strong tags removed from headings' && item.count===1));
+ assert.ok(report.changes.some(item=>item.label==='Empty elements removed' && item.count>=2));
+ const doc=parse(report.cleanedHtml);
+ assert.equal(doc.querySelector('h2 strong'),null);
+ assert.equal(doc.querySelector('p,div'),null);
 });
