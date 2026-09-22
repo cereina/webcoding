@@ -33,7 +33,7 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     if (!anchor.id) anchor.id = anchor.getAttribute('name') ?? '';
   });
   template.content.querySelectorAll('p').forEach((p) => {
-    const match = [...p.classList].join(' ').match(/(?:^|\\s)(?:Mso)?Heading([1-6])(?:\\s|$)/i);
+    const match = [...p.classList].join(' ').match(/(?:^|\s)(?:Mso)?Heading([1-6])(?:\s|$)/i);
     if (match) { const h = document.createElement(`h${match[1]}`); if (sourceAttribute && p.hasAttribute(sourceAttribute)) h.setAttribute(sourceAttribute, p.getAttribute(sourceAttribute)!); h.append(...p.childNodes); p.replaceWith(h); }
   });
 
@@ -48,7 +48,7 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     });
     for (const attribute of ['aria-labelledby', 'aria-describedby', 'headers']) {
       template.content.querySelectorAll<HTMLElement>(`[${attribute}]`).forEach(element => {
-        const ids = (element.getAttribute(attribute) ?? '').trim().split(/\\s+/).filter(Boolean);
+        const ids = (element.getAttribute(attribute) ?? '').trim().split(/\s+/).filter(Boolean);
         if (!ids.includes(oldId)) return;
         element.setAttribute(attribute, ids.map(id => id === oldId ? newId : id).join(' '));
       });
