@@ -1,4 +1,4 @@
-import { wrapHeadingSections } from './section-model.ts';
+import { removeAllSections, wrapHeadingSections } from './section-model.ts';
 import { extraBlocks, makeBlock } from './building-blocks.ts';
 import { setupWorkspace } from './workspace.ts';
 import { setupReview } from './review-panel.ts';
@@ -65,6 +65,12 @@ getElement('wrap-sections', 'button').onclick = () => {
   const source = editor.value, result = wrapHeadingSections(source);
   if (result === source) { notify('No new sections needed. Existing sections and component boundaries are preserved.'); return; }
   commit(result, 'Headings and their content grouped into nested sections. Undo is available.');
+};
+getElement('remove-sections', 'button').onclick = () => {
+  const source = editor.value;
+  const result = removeAllSections(source);
+  if (!result.count) { notify('No section tags were found.'); return; }
+  commit(result.html, `${result.count} section${result.count === 1 ? '' : 's'} removed. All section contents were preserved. Use Wrap headings in sections to rebuild them, or Undo to restore the previous document.`);
 };
 getElement('format', 'button').onclick = () => commit(formatHtml(editor.value), 'Code formatted. Undo is available.');
 const changeListener = editor.onChange(() => {
