@@ -77,13 +77,29 @@ test('moves empty Word bookmark anchors onto headings without changing internal 
  assert.equal(doc.querySelector('h2 > a[id]'),null);
  assert.equal(doc.querySelector('p a').getAttribute('href'),'#abeille');
 });
-test('keeps ambiguous bookmark anchors when a heading already has a different ID', () => {
- const doc=parse(cleanHtml('<h2 id="existing"><a id="bookmark"></a>Heading</h2>'));
- assert.equal(doc.querySelector('h2').id,'existing');
- assert.equal(doc.querySelector('h2 > a').id,'bookmark');
+test('uses a Word bookmark as the canonical heading ID and rewrites the old heading link', () => {
+ const html='<p>L’<a href="#abeille">abeille</a> est dans sa <a href="#_Abeille">maison</a>.</p><h2 id="abeille"><a id="_Abeille"></a>Abeille</h2>';
+ const doc=parse(cleanHtml(html));
+ assert.equal(doc.querySelector('h2').id,'_Abeille');
+ assert.equal(doc.querySelector('h2 > a[id]'),null);
+ assert.deepEqual([...doc.querySelectorAll('p a')].map(a=>a.getAttribute('href')),['#_Abeille','#_Abeille']);
 });
 test('keeps bookmark anchors that are not the first meaningful heading content', () => {
  const doc=parse(cleanHtml('<h2>Prefix <a id="bookmark"></a>Heading</h2>'));
  assert.equal(doc.querySelector('h2').hasAttribute('id'),false);
  assert.equal(doc.querySelector('h2 > a').id,'bookmark');
+});
+
+test('rewrites IDREF attributes when a bookmark replaces an existing heading ID', () => {
+ const html='<h2 id="abeille"><a id="_Abeille"></a>Abeille</h2><div aria-labelledby="abeille" aria-describedby="abeille other"></div><table><tr><th id="other">Other</th><td headers="abeille other">Value</td></tr></table>';
+ const doc=parse(cleanHtml(html));
+ const div=doc.querySelector('div');
+ assert.equal(div.getAttribute('aria-labelledby'),'_Abeille');
+ assert.equal(div.getAttribute('aria-describedby'),'_Abeille other');
+ assert.equal(doc.querySelector('td').getAttribute('headers'),'_Abeille other');
+});
+test('leaves duplicate bookmark destinations untouched instead of guessing', () => {
+ const doc=parse(cleanHtml('<div id="_Abeille">Other</div><h2 id="abeille"><a id="_Abeille"></a>Abeille</h2>'));
+ assert.equal(doc.querySelector('h2').id,'abeille');
+ assert.equal(doc.querySelector('h2 > a').id,'_Abeille');
 });

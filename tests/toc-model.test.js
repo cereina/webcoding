@@ -148,14 +148,15 @@ test('missing heading levels are not exposed and dependency follows available le
  assert.equal(isTocLevelEnabled(draft,4),false);
 });
 
-test('TOC preserves normalized Word bookmark IDs', async () => {
+test('TOC uses the canonical Word bookmark ID after import normalization', async () => {
  const { cleanHtml } = await import('../converter.ts');
- const source=cleanHtml('<p>L’<a href="#abeille">abeille</a> est dans sa maison.</p><h2><a id="abeille"></a>Abeille</h2>');
- assert.match(source,/<h2 id="abeille">Abeille<\/h2>/);
+ const source=cleanHtml('<p>L’<a href="#abeille">abeille</a> est dans sa <a href="#_Abeille">maison</a>.</p><h2 id="abeille"><a id="_Abeille"></a>Abeille</h2>');
+ assert.match(source,/<h2 id="_Abeille">Abeille<\/h2>/);
  const draft=createTocDraft(source);
- assert.equal(draft.headings.find(h=>h.text==='Abeille').id,'abeille');
+ assert.equal(draft.headings.find(h=>h.text==='Abeille').id,'_Abeille');
  const output=applyToc(draft,'en');
  const doc=parse(output);
- assert.equal(doc.querySelector('h2#abeille').textContent,'Abeille');
- assert.ok([...doc.querySelectorAll('a[href="#abeille"]')].length>=2);
+ assert.equal(doc.querySelector('h2#_Abeille').textContent,'Abeille');
+ assert.equal([...doc.querySelectorAll('a[href="#_Abeille"]')].length,3);
+ assert.equal(doc.querySelector('a[href="#abeille"]'),null);
 });
