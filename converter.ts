@@ -14,7 +14,7 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     if (!anchor || !anchor.id || anchor.textContent?.trim() || anchor.children.length) return;
     let node: ChildNode | null = heading.firstChild;
     while (node && node !== anchor) {
-      if (node.nodeType !== Node.TEXT_NODE || node.textContent?.trim()) return;
+      if (node.nodeType !== 3 || node.textContent?.trim()) return;
       node = node.nextSibling;
     }
     if (node !== anchor) return;
