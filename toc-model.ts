@@ -3,7 +3,7 @@ import { parse, parseFragment, type DefaultTreeAdapterTypes } from 'parse5';
 type Node = DefaultTreeAdapterTypes.Node;
 type Element = DefaultTreeAdapterTypes.Element;
 export interface TocHeading { key: number; text: string; level: number; id: string; selected: boolean; }
-export interface TocDraft { source: string; headings: TocHeading[]; placement: string; }
+export interface TocDraft { source: string; headings: TocHeading[]; placement: string; availableLevels: number[]; selectedLevels: Set<number>; }
 interface Patch { start: number; end: number; text: string; }
 const escape = (value: string): string => value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[character] ?? character);
 const isElement = (node: Node): node is Element => 'tagName' in node;
@@ -75,25 +75,40 @@ export function createTocDraft(source: string): TocDraft {
       selected: existing.length > 0 ? Boolean(oldId && previous.has(oldId)) : element !== first });
   }, true);
   headings.sort((a, b) => a.key - b.key);
-  return { source, headings, placement: existing.length ? 'Replace the existing table of contents' : first ? 'After the opening heading' : 'At the top of the document' };
-}
-export function selectHeadingWithDescendants(draft: TocDraft, key: number, selected: boolean): void {
-  const headings = [...draft.headings].sort((a, b) => a.key - b.key);
-  const index = headings.findIndex(heading => heading.key === key);
-  if (index < 0) return;
-  const target = headings[index]!;
-  target.selected = selected;
-  if (!selected) return;
-  for (let i = index + 1; i < headings.length; i++) {
-    const heading = headings[i]!;
-    if (heading.level <= target.level) break;
-    heading.selected = true;
+  const availableLevels = [...new Set(headings.map(heading => heading.level).filter(level => level >= 2 && level <= 6))].sort((a,b)=>a-b);
+  const selectedLevels = new Set<number>();
+  if (existing.length) {
+    for (const level of availableLevels) if (headings.some(heading => heading.level === level && heading.selected)) selectedLevels.add(level);
+    for (let i = 1; i < availableLevels.length; i++) {
+      const previousLevel = availableLevels[i - 1]!, level = availableLevels[i]!;
+      if (!selectedLevels.has(previousLevel)) selectedLevels.delete(level);
+    }
+  } else if (availableLevels.length) {
+    selectedLevels.add(availableLevels[0]!);
   }
+  headings.forEach(heading => { heading.selected = heading.level >= 2 && selectedLevels.has(heading.level); });
+  return { source, headings, availableLevels, selectedLevels, placement: existing.length ? 'Replace the existing table of contents' : first ? 'After the opening heading' : 'At the top of the document' };
 }
 
-export function selectTocFromLevel(draft: TocDraft, minimumLevel: number): void {
-  if (!Number.isInteger(minimumLevel) || minimumLevel < 1 || minimumLevel > 6) throw new Error('Heading level must be between H1 and H6.');
-  draft.headings.forEach(heading => { heading.selected = heading.level >= minimumLevel; });
+export function isTocLevelEnabled(draft: TocDraft, level: number): boolean {
+  const index = draft.availableLevels.indexOf(level);
+  if (index < 0) return false;
+  return index === 0 || draft.selectedLevels.has(draft.availableLevels[index - 1]!);
+}
+
+export function setTocLevel(draft: TocDraft, level: number, selected: boolean): void {
+  const index = draft.availableLevels.indexOf(level);
+  if (index < 0) return;
+  if (selected) {
+    if (!isTocLevelEnabled(draft, level)) return;
+    draft.selectedLevels.add(level);
+    draft.headings.forEach(heading => { if (heading.level === level) heading.selected = true; });
+    return;
+  }
+  for (const deeper of draft.availableLevels.slice(index)) {
+    draft.selectedLevels.delete(deeper);
+    draft.headings.forEach(heading => { if (heading.level === deeper) heading.selected = false; });
+  }
 }
 
 export function renderToc(draft: TocDraft, language: string): string {

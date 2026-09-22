@@ -1,5 +1,5 @@
 import { getElement } from './dom.ts';
-import { createTocDraft, renderToc, applyToc, selectHeadingWithDescendants, selectTocFromLevel } from './toc-model.ts';
+import { createTocDraft, renderToc, applyToc, isTocLevelEnabled, setTocLevel } from './toc-model.ts';
 import './toc-editor.css';
 
 interface TocEditorOptions {
@@ -19,13 +19,32 @@ export function setupTocEditor({ getSource, getLanguage, commit }: TocEditorOpti
     getElement('toc-insert', 'button').disabled = count === 0;
     getElement('toc-status', 'p').textContent = `${count} heading${count === 1 ? '' : 's'} selected · changes apply when you save`;
   }
-  function choices(): void {
-    const rows = draft.headings.map(heading => {
+  function levelChoices(): void {
+    const controls = draft.availableLevels.map(level => {
       const label = document.createElement('label');
-      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = heading.selected;
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = draft.selectedLevels.has(level);
+      checkbox.disabled = !isTocLevelEnabled(draft, level);
+      const text = document.createElement('span');
+      text.textContent = `H${level}`;
+      checkbox.addEventListener('change', () => { setTocLevel(draft, level, checkbox.checked); choices(); });
+      label.append(checkbox, text);
+      return label;
+    });
+    getElement('toc-level-controls', 'div').replaceChildren(...controls);
+  }
+  function choices(): void {
+    levelChoices();
+    const rows = draft.headings.filter(heading => heading.level >= 2).map(heading => {
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = heading.selected;
+      checkbox.disabled = !draft.selectedLevels.has(heading.level);
       const level = document.createElement('span'); level.className = 'level-badge'; level.textContent = `H${heading.level}`;
       const text = document.createElement('span'); text.textContent = heading.text;
-      checkbox.addEventListener('change', () => { selectHeadingWithDescendants(draft, heading.key, checkbox.checked); choices(); });
+      checkbox.addEventListener('change', () => { heading.selected = checkbox.checked; update(); });
       label.append(checkbox, level, text); return label;
     });
     getElement('toc-headings', 'div').replaceChildren(...rows); update();
@@ -34,12 +53,9 @@ export function setupTocEditor({ getSource, getLanguage, commit }: TocEditorOpti
     draft = createTocDraft(getSource()); language = getLanguage();
     getElement('toc-language', 'span').textContent = language === 'fr' ? 'Français · On this page' : 'English · On this page';
     getElement('toc-placement', 'p').textContent = draft.placement;
-    getElement('toc-empty', 'p').hidden = draft.headings.length > 0;
+    getElement('toc-empty', 'p').hidden = draft.availableLevels.length > 0;
     choices(); dialog.showModal();
   };
-  getElement('toc-all', 'button').onclick = () => { draft.headings.forEach(h => { h.selected = true; }); choices(); };
-  getElement('toc-none', 'button').onclick = () => { draft.headings.forEach(h => { h.selected = false; }); choices(); };
-  document.querySelectorAll<HTMLButtonElement>('[data-toc-min-level]').forEach(button => button.onclick = () => { selectTocFromLevel(draft, Number(button.dataset.tocMinLevel)); choices(); });
   getElement('toc-close', 'button').onclick = getElement('toc-cancel', 'button').onclick = () => dialog.close();
   getElement('toc-insert', 'button').onclick = () => {
     if (getSource() !== draft.source) { getElement('toc-status', 'p').textContent = 'The document changed. Close and reopen this dialog before saving.'; return; }
