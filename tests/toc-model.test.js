@@ -147,3 +147,15 @@ test('missing heading levels are not exposed and dependency follows available le
  setTocLevel(draft,2,false);
  assert.equal(isTocLevelEnabled(draft,4),false);
 });
+
+test('TOC preserves normalized Word bookmark IDs', async () => {
+ const { cleanHtml } = await import('../converter.ts');
+ const source=cleanHtml('<p>L’<a href="#abeille">abeille</a> est dans sa maison.</p><h2><a id="abeille"></a>Abeille</h2>');
+ assert.match(source,/<h2 id="abeille">Abeille<\/h2>/);
+ const draft=createTocDraft(source);
+ assert.equal(draft.headings.find(h=>h.text==='Abeille').id,'abeille');
+ const output=applyToc(draft,'en');
+ const doc=parse(output);
+ assert.equal(doc.querySelector('h2#abeille').textContent,'Abeille');
+ assert.ok([...doc.querySelectorAll('a[href="#abeille"]')].length>=2);
+});
