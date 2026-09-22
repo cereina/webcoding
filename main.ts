@@ -3,7 +3,7 @@ import { extraBlocks, makeBlock } from './building-blocks.ts';
 import { setupWorkspace } from './workspace.ts';
 import { setupReview } from './review-panel.ts';
 import mammoth from 'mammoth/mammoth.browser.js';
-import { cleanHtml, plainTextToHtml, inspectHtml, buildPage } from './converter.ts';
+import { cleanHtml, analyzeCleanup, plainTextToHtml, inspectHtml, buildPage, type CleanupReportItem } from './converter.ts';
 import './styles.css';
 import { formatHtml } from './formatter.ts';
 import { createCodeEditor } from './code-editor.ts';
@@ -73,7 +73,66 @@ getElement('redo', 'button').onclick = () => { editor.redo(); refresh(); editor.
 document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', event => { event.preventDefault(); editor.focus(); });
 if (import.meta.hot) import.meta.hot.dispose(() => { clearTimeout(renderTimer); changeListener.dispose(); editor.dispose(); });
 getElement('load-example', 'button').onclick = () => commit(example, 'Example loaded. Use Undo to restore your previous document.');
-getElement('clean', 'button').onclick = () => commit(formatHtml(cleanHtml(editor.value)), 'HTML cleaned. Unsafe content and inline formatting removed. Undo is available.');
+const cleanupDialog = getElement('cleanup-dialog', 'dialog');
+let cleanupSource = '';
+let cleanupResult: ReturnType<typeof analyzeCleanup> | undefined;
+function renderCleanupItems(id: string, items: CleanupReportItem[], warning = false): void {
+  const container = getElement(id, 'div');
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'cleanup-report-empty';
+    empty.textContent = warning ? 'No review items found.' : 'No automatic cleanup changes found.';
+    container.replaceChildren(empty);
+    return;
+  }
+  const nodes = items.map(item => {
+    const details = document.createElement('details');
+    details.className = 'cleanup-report-item' + (warning ? ' cleanup-report-warning' : '');
+    const summary = document.createElement('summary');
+    summary.textContent = `${item.label} · ${item.count}`;
+    details.append(summary);
+    if (item.details.length) {
+      const list = document.createElement('ul');
+      item.details.forEach(detail => {
+        const li = document.createElement('li');
+        li.textContent = detail;
+        list.append(li);
+      });
+      details.append(list);
+    }
+    return details;
+  });
+  container.replaceChildren(...nodes);
+}
+getElement('clean', 'button').onclick = () => {
+  cleanupSource = editor.value;
+  cleanupResult = analyzeCleanup(cleanupSource);
+  const summary = getElement('cleanup-summary', 'div');
+  const changes = document.createElement('span');
+  changes.textContent = `${cleanupResult.totalChanges} automatic change${cleanupResult.totalChanges === 1 ? '' : 's'}`;
+  const warnings = document.createElement('span');
+  const warningCount = cleanupResult.warnings.reduce((sum, item) => sum + item.count, 0);
+  warnings.textContent = `${warningCount} review item${warningCount === 1 ? '' : 's'}`;
+  summary.replaceChildren(changes, warnings);
+  renderCleanupItems('cleanup-changes', cleanupResult.changes);
+  renderCleanupItems('cleanup-warnings', cleanupResult.warnings, true);
+  getElement('cleanup-status', 'p').textContent = cleanupResult.totalChanges
+    ? 'Review the changes below, then apply when ready.'
+    : 'Maple found no automatic cleanup changes. You can still review any warnings below.';
+  getElement('cleanup-apply', 'button').disabled = cleanupResult.cleanedHtml === cleanupSource;
+  cleanupDialog.showModal();
+};
+for (const id of ['cleanup-close','cleanup-cancel']) getElement(id, 'button').onclick = () => cleanupDialog.close();
+getElement('cleanup-apply', 'button').onclick = () => {
+  if (!cleanupResult) return;
+  if (editor.value !== cleanupSource) {
+    getElement('cleanup-status', 'p').textContent = 'The document changed after this report was created. Close the report and run Clean HTML again.';
+    return;
+  }
+  const warningCount = cleanupResult.warnings.reduce((sum, item) => sum + item.count, 0);
+  commit(formatHtml(cleanupResult.cleanedHtml), `Cleanup complete: ${cleanupResult.totalChanges} change${cleanupResult.totalChanges === 1 ? '' : 's'} applied.${warningCount ? ` ${warningCount} item${warningCount === 1 ? '' : 's'} still need review.` : ''} Undo is available.`);
+  cleanupDialog.close();
+};
 getElement('language', 'select').onchange = refresh;
 
 getElement('open-paste', 'button').onclick = () => { getElement('paste-area', 'div').replaceChildren(); getElement('import-dialog', 'dialog').showModal(); getElement('paste-area', 'div').focus(); };
