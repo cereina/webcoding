@@ -5,7 +5,7 @@ const dom = new JSDOM('');
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.DOMParser = dom.window.DOMParser;
-const { createTocDraft, renderToc, applyToc } = await import('../toc-model.ts');
+const { createTocDraft, renderToc, applyToc, selectHeadingWithDescendants, selectTocFromLevel } = await import('../toc-model.ts');
 const parse = html => new JSDOM(html).window.document;
 const links = doc => [...doc.querySelectorAll('nav[data-maple-toc="true"] a')];
 
@@ -114,3 +114,18 @@ test('omitted parents and skipped levels never nest under unrelated earlier sibl
  assert.equal(doc.querySelector('nav > ul > li:last-child > ul > li > a').textContent,'Last');
 });
 
+
+test('selecting H2 includes its descendant headings through H6 until the next H2 or higher', () => {
+ const draft=createTocDraft('<h1>Title</h1><h2>A</h2><h3>A.1</h3><h4>A.1.a</h4><h2>B</h2><h3>B.1</h3>');
+ draft.headings.forEach(h=>h.selected=false);
+ const a=draft.headings.find(h=>h.text==='A');
+ selectHeadingWithDescendants(draft,a.key,true);
+ assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.text),['A','A.1','A.1.a']);
+});
+test('level presets include that level and every deeper heading', () => {
+ const draft=createTocDraft('<h1>Title</h1><h2>A</h2><h3>B</h3><h4>C</h4><h5>D</h5><h6>E</h6>');
+ selectTocFromLevel(draft,2);
+ assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.level),[2,3,4,5,6]);
+ selectTocFromLevel(draft,4);
+ assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.level),[4,5,6]);
+});
