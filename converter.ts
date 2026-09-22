@@ -32,7 +32,7 @@ function isVisuallyEmpty(element: Element): boolean {
   if (EMPTY_ELEMENT_EXCEPTIONS.has(element.tagName)) return false;
   if (element.id) return false;
   if (element.children.length) return false;
-  return (element.textContent ?? '').replace(/[\s\u00a0\ufeff]/g, '') === '';
+  return (element.textContent ?? '').replace(/[\s\u00a0\u200b\ufeff]/g, '') === '';
 }
 
 function removeEmptyElements(root: ParentNode): { count: number; details: string[] } {
