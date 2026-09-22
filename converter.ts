@@ -66,6 +66,11 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false,
     FORBID_TAGS: ['style','script','iframe','object','embed','form','input','button'],
   });
+  const textWalker = document.createTreeWalker(template.content, 4); // NodeFilter.SHOW_TEXT
+  while (textWalker.nextNode()) {
+    const node = textWalker.currentNode;
+    if (node.textContent?.match(/[‘’]/)) node.textContent = node.textContent.replace(/[‘’]/g, "'");
+  }
   template.content.querySelectorAll('*').forEach((element) => {
     if (element.hasAttribute('class')) {
       const classes = [...element.classList].filter((name) => /^[a-z][a-z0-9_-]*$/i.test(name) && !/^(?:Mso|WordSection)/i.test(name));
