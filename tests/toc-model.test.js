@@ -5,7 +5,7 @@ const dom = new JSDOM('');
 globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.DOMParser = dom.window.DOMParser;
-const { createTocDraft, renderToc, applyToc, selectHeadingWithDescendants, selectTocFromLevel } = await import('../toc-model.ts');
+const { createTocDraft, renderToc, applyToc, isTocLevelEnabled, setTocLevel } = await import('../toc-model.ts');
 const parse = html => new JSDOM(html).window.document;
 const links = doc => [...doc.querySelectorAll('nav[data-maple-toc="true"] a')];
 
@@ -115,17 +115,33 @@ test('omitted parents and skipped levels never nest under unrelated earlier sibl
 });
 
 
-test('selecting H2 includes its descendant headings through H6 until the next H2 or higher', () => {
- const draft=createTocDraft('<h1>Title</h1><h2>A</h2><h3>A.1</h3><h4>A.1.a</h4><h2>B</h2><h3>B.1</h3>');
- draft.headings.forEach(h=>h.selected=false);
- const a=draft.headings.find(h=>h.text==='A');
- selectHeadingWithDescendants(draft,a.key,true);
- assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.text),['A','A.1','A.1.a']);
+
+test('new TOC shows only available levels and selects only the shallowest level by default', () => {
+ const draft=createTocDraft('<h1>Title</h1><h2>A</h2><h3>B</h3>');
+ assert.deepEqual(draft.availableLevels,[2,3]);
+ assert.deepEqual([...draft.selectedLevels],[2]);
+ assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.level),[2]);
+ assert.equal(isTocLevelEnabled(draft,2),true);
+ assert.equal(isTocLevelEnabled(draft,3),true);
 });
-test('level presets include that level and every deeper heading', () => {
- const draft=createTocDraft('<h1>Title</h1><h2>A</h2><h3>B</h3><h4>C</h4><h5>D</h5><h6>E</h6>');
- selectTocFromLevel(draft,2);
- assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.level),[2,3,4,5,6]);
- selectTocFromLevel(draft,4);
- assert.deepEqual(draft.headings.filter(h=>h.selected).map(h=>h.level),[4,5,6]);
+test('unchecking a parent level clears and disables deeper levels', () => {
+ const draft=createTocDraft('<h2>A</h2><h3>B</h3><h4>C</h4>');
+ setTocLevel(draft,3,true);
+ setTocLevel(draft,4,true);
+ assert.deepEqual([...draft.selectedLevels],[2,3,4]);
+ setTocLevel(draft,2,false);
+ assert.deepEqual([...draft.selectedLevels],[]);
+ assert.equal(isTocLevelEnabled(draft,3),false);
+ assert.equal(isTocLevelEnabled(draft,4),false);
+ assert.equal(draft.headings.some(h=>h.selected),false);
+ setTocLevel(draft,2,true);
+ assert.equal(isTocLevelEnabled(draft,3),true);
+ assert.equal(draft.selectedLevels.has(3),false);
+});
+test('missing heading levels are not exposed and dependency follows available levels', () => {
+ const draft=createTocDraft('<h2>A</h2><h4>C</h4>');
+ assert.deepEqual(draft.availableLevels,[2,4]);
+ assert.equal(isTocLevelEnabled(draft,4),true);
+ setTocLevel(draft,2,false);
+ assert.equal(isTocLevelEnabled(draft,4),false);
 });
