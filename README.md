@@ -125,3 +125,12 @@ The Dockerfile builds the Vite application and serves only the generated dist di
 Local artifacts, test documents, caches, logs, and environment files are excluded from source control and Docker builds. The postponed accessibility/draft-recovery work is backed up locally under artifacts and is not part of this release.
 
 Automatic table headers: In the table dialog, mark header rows/columns (or individual header cells), then choose **Analyze and assign headers**. The tool assigns document-unique IDs and links cells to clear row, column, and grouped headings. Review the draft and choose **Apply changes**. Cancel discards the draft. Valid explicit relationships are preserved. Ambiguous, malformed, nested-container, or oversized tables produce review messages without partial changes. After changing the table structure, review existing relationships; the button preserves them rather than replacing author intent. This assists accessible authoring and does not certify WCAG conformance.
+
+
+## Licensing
+
+Maple's original project code is covered by the repository-level `LICENSE` notice. Third-party software keeps its own license terms.
+
+Run `npm run licenses` after `npm ci` to generate `public/THIRD_PARTY_LICENSES.txt` from the exact installed dependency versions. `npm run build` performs this step automatically before type checking and the Vite production build, so the generated notices are included in `dist/` and deployed with the application.
+
+See `THIRD_PARTY_NOTICES.md` for the licensing workflow. Monaco Editor also keeps its upstream `public/monaco-LICENSE.txt` and `public/monaco-ThirdPartyNotices.txt` files.
