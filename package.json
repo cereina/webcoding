@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "npm run typecheck && vite build",
+    "build": "npm run licenses && npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --import tsx --test tests/*.test.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "licenses": "node scripts/generate-third-party-licenses.mjs"
   },
   "dependencies": {
     "dompurify": "^3.2.6",
@@ -24,4 +25,3 @@
     "typescript": "^7.0.2"
   }
 }
-
