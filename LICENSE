@@ -1,0 +1,17 @@
+Maple Document Studio
+
+Copyright (c) 2026. All rights reserved.
+
+The original source code and documentation in this repository are not
+licensed for copying, modification, redistribution, sublicensing, sale,
+or other reuse except where permission is granted separately in writing.
+
+Third-party software included in or used by this project remains subject
+to its own license terms. Nothing in this notice changes, restricts, or
+replaces rights granted by those third-party licenses.
+
+Third-party licensing information is documented in:
+- THIRD_PARTY_NOTICES.md
+- public/THIRD_PARTY_LICENSES.txt (generated during builds)
+- public/monaco-LICENSE.txt
+- public/monaco-ThirdPartyNotices.txt
