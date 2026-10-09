@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 
 const dom = new JSDOM('');
+globalThis.window = dom.window;
 globalThis.document = dom.window.document;
 globalThis.DOMParser = dom.window.DOMParser;
 globalThis.NodeFilter = dom.window.NodeFilter;
