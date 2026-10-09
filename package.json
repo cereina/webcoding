@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "licenses": "node scripts/generate-third-party-licenses.mjs",
     "security:licenses": "node scripts/check-third-party-licenses.mjs",
-    "security:audit": "npm audit --audit-level=high"
+    "security:audit": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "dompurify": "3.4.16",
