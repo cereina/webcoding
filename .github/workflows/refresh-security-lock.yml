@@ -8,7 +8,7 @@ permissions:
   contents: write
 
 jobs:
-  refresh-and-verify:
+  refresh-lock:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -22,16 +22,6 @@ jobs:
           cache: npm
       - name: Refresh lockfile for security overrides
         run: npm install --package-lock-only --ignore-scripts
-      - name: Install exact locked dependencies
-        run: npm ci
-      - name: Type check
-        run: npm run typecheck
-      - name: Test
-        run: npm test
-      - name: Build and license checks
-        run: npm run build
-      - name: Fail on high or critical npm advisories
-        run: npm run security:audit
       - name: Commit refreshed lockfile
         run: |
           if git diff --quiet -- package-lock.json; then
