@@ -21,7 +21,6 @@ test('handles skipped levels and complete HTML documents',()=>{
  assert.equal(doc.title,'Keep');assert.equal(doc.documentElement.lang,'fr');assert.ok(doc.querySelector('main > section > section > h4'));assert.ok(doc.getElementById('a'));
 });
 
-
 test('promotes an existing nested section when its heading level is promoted',()=>{
  const source='<section id="a"><h2>A</h2><p>A text</p><section id="b" class="keep"><h2>B</h2><p>B text</p></section></section>';
  const doc=parse(sync(source));
@@ -41,6 +40,24 @@ test('nests an existing sibling section when its heading level is demoted',()=>{
 test('does not create sections when synchronizing a document without heading sections',()=>{
  const source='<h2>A</h2><h3>B</h3>';
  assert.equal(sync(source),source);
+});
+
+test('keeps WET-BOEW footnotes outside generated section tags',()=>{
+ const source='<h1>Page</h1><p>Intro</p><h2>Details</h2><p>Text</p><aside class="wb-fnote" role="note"><h2 id="fn">Footnotes</h2><dl><dt>Footnote 1</dt><dd id="fn1"><p>Note</p></dd></dl></aside>';
+ const doc=parse(wrap(source));
+ const aside=doc.querySelector('aside.wb-fnote');
+ assert.ok(aside);
+ assert.equal(aside.closest('section'),null);
+ assert.equal(aside.querySelector(':scope > h2')?.textContent,'Footnotes');
+});
+
+test('moves a legacy WET footnotes aside out of a section before wrapping',()=>{
+ const source='<main><section><h2>Details</h2><p>Text</p><aside class="wb-fnote" role="note"><h2 id="fn">Footnotes</h2><dl></dl></aside></section></main>';
+ const doc=parse(wrap(source));
+ const aside=doc.querySelector('aside.wb-fnote');
+ assert.ok(aside);
+ assert.equal(aside.closest('section'),null);
+ assert.equal(aside.parentElement?.tagName,'MAIN');
 });
 
 test('removes all section tags while preserving their contents',()=>{
