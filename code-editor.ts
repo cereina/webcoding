@@ -14,18 +14,32 @@ import HtmlWorker from 'monaco-editor/language/html/html.worker?worker';
 const MAPLE_ACCESSIBLE_THEME = 'maple-accessible-dark';
 monaco.editor.defineTheme(MAPLE_ACCESSIBLE_THEME, {
   base: 'vs-dark',
-  inherit: true,
+  // Do not inherit token colours from Monaco's built-in dark theme. HTML uses
+  // language-specific scopes such as delimiter.html and tag.html; inherited
+  // values can otherwise reintroduce low-contrast colours.
+  inherit: false,
   rules: [
     { token: '', foreground: 'E6EEF1', background: '142B36' },
-    { token: 'comment', foreground: 'A9C7B7' },
+
+    // HTML text and markup. Every foreground below is at least 4.5:1 against
+    // Maple's #142B36 editor background.
+    { token: 'delimiter', foreground: 'F4FAFC' },
+    { token: 'delimiter.html', foreground: 'F4FAFC' },
+    { token: 'tag', foreground: '8CCBFF' },
+    { token: 'tag.html', foreground: '8CCBFF' },
+    { token: 'metatag', foreground: 'B8D9FF' },
+    { token: 'metatag.html', foreground: 'B8D9FF' },
+    { token: 'attribute.name', foreground: 'FFD28A' },
+    { token: 'attribute.name.html', foreground: 'FFD28A' },
+    { token: 'attribute.value', foreground: 'B7E7A7' },
+    { token: 'attribute.value.html', foreground: 'B7E7A7' },
     { token: 'string', foreground: 'B7E7A7' },
+    { token: 'string.html', foreground: 'B7E7A7' },
     { token: 'number', foreground: 'FFD28A' },
     { token: 'keyword', foreground: '8CCBFF' },
-    { token: 'tag', foreground: '8CCBFF' },
-    { token: 'attribute.name', foreground: 'FFD28A' },
-    { token: 'attribute.value', foreground: 'B7E7A7' },
-    { token: 'delimiter', foreground: 'E6EEF1' },
-    { token: 'metatag', foreground: 'B8D9FF' },
+    { token: 'comment', foreground: 'A9C7B7' },
+    { token: 'comment.html', foreground: 'A9C7B7' },
+    { token: 'comment.content.html', foreground: 'A9C7B7' },
   ],
   colors: {
     'editor.background': '#142B36',
