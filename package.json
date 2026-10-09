@@ -15,10 +15,10 @@
   },
   "dependencies": {
     "dompurify": "3.4.16",
-    "mammoth": "^1.9.1",
-    "monaco-editor": "^0.56.0",
+    "mammoth": "^1.13.0",
+    "monaco-editor": "^0.57.0",
     "parse5": "^8.0.1",
-    "vite": "^7.1.5"
+    "vite": "^8.3.3"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",
