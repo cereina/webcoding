@@ -6,7 +6,7 @@ const lock = JSON.parse(await fs.readFile(path.join(root, 'package-lock.json'), 
 const entries = Object.keys(lock.packages ?? {}).filter(key => key.startsWith('node_modules/'));
 const problems = [];
 
-const permissiveAlternative = /\b(?:MIT|ISC|BSD(?:-2-Clause|-3-Clause)?|Apache-2\.0|MPL-2\.0|0BSD|CC0-1\.0|Unlicense|W3C|Unicode-3\.0|BlueOak-1\.0\.0)\b/i;
+const permissiveAlternative = /\b(?:MIT|ISC|BSD(?:-2-Clause|-3-Clause)?|Apache-2\.0|MPL-2\.0|Python-2\.0|PSF-2\.0|0BSD|CC0-1\.0|Unlicense|W3C|Unicode-3\.0|BlueOak-1\.0\.0)\b/i;
 const prohibited = /\b(?:AGPL(?:-[0-9.]+)?|SSPL(?:-[0-9.]+)?|BUSL(?:-[0-9.]+)?|Commons Clause)\b/i;
 const copyleft = /\b(?:GPL|LGPL)(?:-[0-9.]+)?(?:-only|-or-later)?\b/i;
 
