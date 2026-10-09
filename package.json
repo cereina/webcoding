@@ -21,9 +21,9 @@
     "vite": "^7.1.5"
   },
   "devDependencies": {
-    "@types/node": "^22.20.3",
-    "jsdom": "^26.1.0",
-    "tsx": "^4.23.13",
+    "@types/node": "^26.6.4",
+    "jsdom": "^30.1.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "overrides": {
