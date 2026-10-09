@@ -27,6 +27,9 @@
     "typescript": "^7.0.2"
   },
   "overrides": {
+    "mammoth": {
+      "argparse": "2.0.1"
+    },
     "monaco-editor": {
       "dompurify": "3.4.16"
     },
