@@ -26,8 +26,8 @@ jobs:
         run: npm ci
       - name: Type check
         run: npm run typecheck
-      - name: Run blocking security regression tests
-        run: node --import tsx --test tests/security.test.js tests/docx-safety.test.js tests/footnotes.test.js
+      - name: Run blocking security and contrast regression tests
+        run: node --import tsx --test tests/security.test.js tests/docx-safety.test.js tests/footnotes.test.js tests/contrast.test.js
       - name: Build and verify third-party licenses
         run: npm run build
       - name: Fail on moderate or higher npm advisories
