@@ -1,0 +1,39 @@
+name: Security and quality
+
+on:
+  push:
+    branches: [main, security-hardening]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '23 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+      - name: Use Node 22.23.3
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.3
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Run blocking security regression tests
+        run: node --import tsx --test tests/security.test.js tests/docx-safety.test.js tests/footnotes.test.js
+      - name: Build and verify third-party licenses
+        run: npm run build
+      - name: Fail on moderate or higher npm advisories
+        run: npm run security:audit
+      - name: Show security-sensitive dependency versions
+        run: npm ls dompurify source-map-js mammoth argparse sprintf-js monaco-editor --all
+      - name: Run complete legacy regression suite
+        continue-on-error: true
+        run: npm test
