@@ -10,7 +10,28 @@ import HtmlWorker from 'monaco-editor/language/html/html.worker?worker';
   },
 };
 
-export function createCodeEditor(element: HTMLElement, value: string) {
+export interface MapleCodeEditor {
+  readonly value: string;
+  readonly selectionStart: number;
+  readonly selectionEnd: number;
+  replace(value: string): void;
+  focus(): void;
+  setSelectionRange(start: number, end: number): void;
+  onChange(callback: () => void): monaco.IDisposable;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  undo(): void;
+  redo(): void;
+  dispose(): void;
+}
+
+declare global {
+  interface Window {
+    __mapleEditor?: MapleCodeEditor;
+  }
+}
+
+export function createCodeEditor(element: HTMLElement, value: string): MapleCodeEditor {
   const instance = monaco.editor.create(element, {
     value, language: 'html', theme: 'vs-dark', automaticLayout: true,
     ariaLabel: 'HTML source code', accessibilitySupport: 'auto',
@@ -20,7 +41,8 @@ export function createCodeEditor(element: HTMLElement, value: string) {
     padding: { top: 16, bottom: 16 }, fixedOverflowWidgets: true,
   });
   const model = instance.getModel()!;
-  return {
+  let api!: MapleCodeEditor;
+  api = {
     get value() { return model.getValue(); },
     get selectionStart() { return model.getOffsetAt(instance.getSelection()!.getStartPosition()); },
     get selectionEnd() { return model.getOffsetAt(instance.getSelection()!.getEndPosition()); },
@@ -41,8 +63,11 @@ export function createCodeEditor(element: HTMLElement, value: string) {
     canRedo() { return model.canRedo(); },
     undo() { instance.trigger('toolbar', 'undo', null); },
     redo() { instance.trigger('toolbar', 'redo', null); },
-    dispose() { instance.dispose(); model.dispose(); },
+    dispose() {
+      if (window.__mapleEditor === api) delete window.__mapleEditor;
+      instance.dispose(); model.dispose();
+    },
   };
+  window.__mapleEditor = api;
+  return api;
 }
-
-
