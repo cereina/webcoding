@@ -1,0 +1,65 @@
+/* WCAG AA contrast hardening for interactive controls and repeated UI states. */
+:root{
+  --maple-control-border:#748a81;
+  --maple-control-border-dark:#82969f;
+  --maple-placeholder:#5c7066;
+}
+
+/* Form controls and button boundaries need at least 3:1 against adjacent light surfaces. */
+.button.secondary,
+.field input,
+.field select,
+.pane-actions select,
+.app-footer select,
+#review-filter,
+.workspace-controls select,
+.table-settings input:not([type=checkbox]),
+.table-settings select,
+#cell-text,
+.split-fields input,
+.heading-level-control select,
+.paste-area{
+  border-color:var(--maple-control-border)!important;
+}
+
+.component-card,
+.header-options label,
+.table-preview-scroll{
+  border-color:var(--maple-control-border)!important;
+}
+
+.component-card:hover,
+.button.secondary:hover{
+  border-color:#62796f!important;
+}
+
+/* Dark toolbar controls use a lighter boundary so the control shape remains visible. */
+.editor-toolbar button,
+.editor-toolbar select,
+.editor-toolbar .button.secondary{
+  border-color:var(--maple-control-border-dark)!important;
+}
+
+/* Placeholder text is normal text for contrast purposes. */
+.paste-area:empty::before,
+.table-settings input::placeholder{
+  color:var(--maple-placeholder)!important;
+}
+
+/* The draggable splitter handle is a meaningful graphical control. */
+#workspace-divider:after{
+  background:#62796f!important;
+}
+
+/* Table cell boundaries communicate structure and must stay visible on all row fills. */
+#table-visual th,
+#table-visual td{
+  border-color:var(--maple-control-border)!important;
+}
+
+/* Keep dialog/form boundaries distinguishable without changing the overall palette. */
+.table-dialog,
+.split-dialog,
+.heading-editor-row{
+  border-color:var(--maple-control-border)!important;
+}
