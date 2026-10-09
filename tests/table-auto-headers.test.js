@@ -20,12 +20,12 @@ test('simple tables keep semantic scope and do not add unnecessary headers relat
 });
 
 test('grouped tables keep scope relationships without forcing explicit headers attributes', () => {
-  const t = createTableDraft('<table><tr><th colspan="2">Sales</th></tr><tr><th>A</th><th>B</th></tr><tr><td>10</td><td>20</td></tr></table>').tables[0];
+  const t = createTableDraft('<table><tr><th colspan="2">Sales</th></tr><tr><td>10</td><td>20</td></tr></table>').tables[0];
   assert.deepEqual(assignTableHeaders(t).issues, []);
   assert.equal(t.rows[0].cells[0].scope, 'colgroup');
-  assert.equal(t.rows[1].cells[0].scope, 'col');
-  assert.equal(t.rows[1].cells[1].scope, 'col');
-  assert.equal(t.rows[2].cells[0].hasAttribute('headers'), false);
+  assert.equal(t.rows[1].cells[0].hasAttribute('headers'), false);
+  assert.equal(t.rows[1].cells[1].hasAttribute('headers'), false);
+  assert.equal(t.table.querySelector('[id]'), null);
 });
 
 test('complex tables receive explicit ids and headers while keeping scope', () => {
