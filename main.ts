@@ -2,7 +2,6 @@ import { removeAllSections, wrapHeadingSections } from './section-model.ts';
 import { extraBlocks, makeBlock } from './building-blocks.ts';
 import { setupWorkspace } from './workspace.ts';
 import { setupReview } from './review-panel.ts';
-import mammoth from 'mammoth/mammoth.browser.js';
 import { cleanHtml, analyzeCleanup, plainTextToHtml, inspectHtml, buildPage, type CleanupReportItem } from './converter.ts';
 import './styles.css';
 import { formatHtml } from './formatter.ts';
@@ -11,9 +10,10 @@ import { setupTableEditor } from './table-editor.ts';
 import { setupTocEditor } from './toc-editor.ts';
 import { setupHeadingEditor } from './heading-editor.ts';
 import { linkFootnotes } from './footnotes.ts';
-
+import { convertDocxSafely } from './docx-import.ts';
 import { getElement } from './dom.ts';
-document.documentElement.dataset.mapleBuild = 'maple-heading-runtime-v3';
+
+document.documentElement.dataset.mapleBuild = 'maple-security-runtime-v1';
 const example = `<h1>Getting started with your project</h1>
 <p>A simple guide to planning, building, and sharing your next idea.</p>
 
@@ -167,15 +167,17 @@ getElement('file', 'input').onchange = async () => { const file = getElement('fi
 async function importFile(file: File) {
   if (importing) return;
   if (!/\.docx$/i.test(file.name)) return notify('Choose a .docx file. Save older .doc files as .docx in Word first.');
-  if (file.size > 10 * 1024 * 1024) return notify('This file exceeds 10 MB. Choose a smaller document.');
   importing = true; getElement('upload', 'button').disabled = true;
-  const previous = editor.value; notify(`Converting ${file.name}Ã¢â‚¬Â¦`);
+  const previous = editor.value; notify(`Converting ${file.name}…`);
   try {
-    const result = await mammoth.convertToHtml({ arrayBuffer: await file.arrayBuffer() });
+    const result = await convertDocxSafely(file);
     if (editor.value !== previous) { notify('Import stopped because you edited the document during conversion. Upload again when ready.'); return; }
-    commit(formatHtml(linkFootnotes(cleanHtml(result.value), getElement('language', 'select').value)), `${file.name} converted.${result.messages.length ? ' Conversion notes: ' + result.messages.map(m => m.message).join(' Ã‚Â· ') : ' Review headings, images, and tables before exporting.'}`);
-  } catch { notify('This document could not be read. Check that it is a valid, unencrypted .docx file. Your current HTML is unchanged.'); }
-  finally { importing = false; getElement('upload', 'button').disabled = false; }
+    commit(formatHtml(linkFootnotes(cleanHtml(result.value), getElement('language', 'select').value)), `${file.name} converted.${result.messages.length ? ' Conversion notes: ' + result.messages.join(' · ') : ' Review headings, images, and tables before exporting.'}`);
+  } catch (error) {
+    notify(error instanceof Error ? error.message : 'This document could not be read safely. Your current HTML is unchanged.');
+  } finally {
+    importing = false; getElement('upload', 'button').disabled = false;
+  }
 }
 const dropZone = document.querySelector<HTMLElement>('.import-bar');
 if (!dropZone) throw new Error('Missing import area.');
@@ -223,5 +225,3 @@ getElement('download', 'button').onclick = () => {
   const url = URL.createObjectURL(new Blob([exported()], { type: 'text/html;charset=utf-8' }));
   const a = document.createElement('a'); a.href = url; a.download = 'document.html'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('Clean HTML downloaded. Embedded document images are included.');
 };
-
-
