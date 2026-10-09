@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor';
+import './contrast.css';
 
 import 'monaco-editor/language/html/monaco.contribution.js';
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker';
@@ -9,6 +10,35 @@ import HtmlWorker from 'monaco-editor/language/html/html.worker?worker';
     return label === 'html' ? new HtmlWorker() : new EditorWorker();
   },
 };
+
+const MAPLE_ACCESSIBLE_THEME = 'maple-accessible-dark';
+monaco.editor.defineTheme(MAPLE_ACCESSIBLE_THEME, {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [
+    { token: '', foreground: 'E6EEF1', background: '142B36' },
+    { token: 'comment', foreground: 'A9C7B7' },
+    { token: 'string', foreground: 'B7E7A7' },
+    { token: 'number', foreground: 'FFD28A' },
+    { token: 'keyword', foreground: '8CCBFF' },
+    { token: 'tag', foreground: '8CCBFF' },
+    { token: 'attribute.name', foreground: 'FFD28A' },
+    { token: 'attribute.value', foreground: 'B7E7A7' },
+    { token: 'delimiter', foreground: 'E6EEF1' },
+    { token: 'metatag', foreground: 'B8D9FF' },
+  ],
+  colors: {
+    'editor.background': '#142B36',
+    'editor.foreground': '#E6EEF1',
+    'editorGutter.background': '#142B36',
+    'editorLineNumber.foreground': '#A9BCC4',
+    'editorLineNumber.activeForeground': '#F4FAFC',
+    'editorCursor.foreground': '#8CE1C3',
+    'editorWhitespace.foreground': '#748A81',
+    'editorIndentGuide.background1': '#748A81',
+    'editorIndentGuide.activeBackground1': '#A9BCC4',
+  },
+});
 
 export interface MapleCodeEditor {
   readonly value: string;
@@ -33,7 +63,7 @@ declare global {
 
 export function createCodeEditor(element: HTMLElement, value: string): MapleCodeEditor {
   const instance = monaco.editor.create(element, {
-    value, language: 'html', theme: 'vs-dark', automaticLayout: true,
+    value, language: 'html', theme: MAPLE_ACCESSIBLE_THEME, automaticLayout: true,
     ariaLabel: 'HTML source code', accessibilitySupport: 'auto',
     minimap: { enabled: false }, fontSize: 14, lineHeight: 23,
     tabSize: 2, insertSpaces: true, wordWrap: 'on',
