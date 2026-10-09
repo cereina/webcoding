@@ -30,6 +30,13 @@ function editorColor(key) {
   return match[1];
 }
 
+function tokenColor(token) {
+  const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = editorSource.match(new RegExp(`token:\\s*['\"]${escaped}['\"]\\s*,\\s*foreground:\\s*['\"]([0-9a-f]{6})['\"]`, 'i'));
+  assert.ok(match, `Missing Monaco token colour for ${token || 'default text'}`);
+  return `#${match[1]}`;
+}
+
 test('placeholder text meets WCAG AA normal-text contrast', () => {
   const placeholder = cssVariable('maple-placeholder');
   assert.ok(contrast(placeholder, '#fafcf9') >= 4.5);
@@ -55,4 +62,26 @@ test('Monaco primary text and line numbers meet WCAG AA', () => {
     assert.ok(contrast(foreground, background) >= 4.5, `${key} is below 4.5:1`);
   }
   assert.ok(contrast(editorColor('editorWhitespace.foreground'), background) >= 3);
+});
+
+test('Monaco does not inherit low-contrast HTML token colours', () => {
+  assert.match(editorSource, /inherit:\s*false/);
+});
+
+test('Monaco HTML text, delimiters and syntax tokens meet WCAG AA', () => {
+  const background = editorColor('editor.background');
+  for (const token of [
+    '',
+    'delimiter.html',
+    'tag.html',
+    'metatag.html',
+    'attribute.name.html',
+    'attribute.value.html',
+    'string.html',
+    'comment.html',
+    'comment.content.html',
+  ]) {
+    const foreground = tokenColor(token);
+    assert.ok(contrast(foreground, background) >= 4.5, `${token || 'default text'} is below 4.5:1`);
+  }
 });
