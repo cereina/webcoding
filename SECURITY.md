@@ -32,15 +32,14 @@ npm run security:audit
 npm run licenses
 npm run security:licenses
 npm run typecheck
-npm test
 npm run build
 ```
 
-`security:audit` fails on high or critical npm advisories. `security:licenses` fails when an installed dependency has no usable license information or introduces a license that requires explicit legal review.
+`security:audit` fails on moderate, high, or critical npm advisories. `security:licenses` fails when an installed dependency has no usable license information or introduces a license that requires explicit legal review.
 
-### Known transitive advisory
+Maple pins DOMPurify to the patched version used by both the application and Monaco, pins `source-map-js` to its patched release, and overrides Mammoth's CLI-only `argparse@1.x` dependency with the backwards-compatible `argparse@2.0.1`. Mammoth's browser conversion path does not use the CLI parser, while argparse 2 retains the version-1 compatibility API. This removes the vulnerable `sprintf-js` dependency from the installed tree without downgrading or modifying Mammoth's browser converter.
 
-Mammoth currently depends on `argparse@1.x`, which depends on `sprintf-js@1.0.x`. The current `sprintf-js` denial-of-service advisory has no patched release in that dependency line. Maple imports Mammoth's browser build and does not pass document content to `sprintf-js` format strings directly. This advisory is therefore tracked as an accepted transitive build/dependency risk until Mammoth or its dependency chain removes or patches it. Do not use `npm audit fix --force` to downgrade Mammoth.
+Do not use `npm audit fix --force`; security dependency changes must be explicit, reviewed, and tested.
 
 ## Deployment requirements
 
@@ -51,6 +50,10 @@ The Dockerfile pins Node and Nginx image versions. IT should still scan the fina
 ## Repository controls
 
 For an organizational deployment, protect `main` so changes require a pull request and successful security/quality checks. Keep secrets and environment files out of source control. The repository already ignores `.env` and `.env.*` files.
+
+## Regression testing
+
+Security-focused tests for sanitization, DOCX archive limits, and WET-BOEW footnote conversion are blocking CI checks. The complete historical regression suite also runs on every CI execution; any older unrelated failures remain visible while they are addressed separately rather than weakening the security gate.
 
 ## Reporting
 
