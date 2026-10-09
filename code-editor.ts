@@ -54,6 +54,39 @@ monaco.editor.defineTheme(MAPLE_ACCESSIBLE_THEME, {
   },
 });
 
+function nameGeneratedAccessibilityElements(editorElement: HTMLElement): void {
+  const applyNames = () => {
+    // Monaco creates this helper textarea internally for IME/input handling.
+    // Some automated accessibility checkers still inspect it even though
+    // Monaco marks it aria-hidden and removes it from the tab order.
+    const imeTextArea = editorElement.querySelector<HTMLTextAreaElement>('textarea.ime-text-area');
+    if (imeTextArea && !imeTextArea.hasAttribute('aria-label')) {
+      imeTextArea.setAttribute('aria-label', 'HTML editor input helper');
+    }
+
+    // The table editor heading is populated when a table is previewed. Give
+    // it meaningful text immediately so the initial DOM never contains an
+    // empty heading.
+    const tableName = document.getElementById('table-name');
+    if (tableName && !(tableName.textContent ?? '').trim()) {
+      tableName.textContent = 'Table preview';
+    }
+
+    // The figure picker is created dynamically by main.ts and opened from a
+    // visible building-block button. Give the hidden native input an explicit
+    // accessible name for scanners that inspect hidden form controls.
+    const imageInput = document.querySelector<HTMLInputElement>('input[type="file"][accept*="image/"]');
+    if (imageInput && !imageInput.hasAttribute('aria-label')) {
+      imageInput.setAttribute('aria-label', 'Choose an image for the figure');
+    }
+  };
+
+  applyNames();
+  // main.ts creates the figure input later in the same module evaluation, and
+  // Monaco may finish wiring its helper textarea after editor creation.
+  queueMicrotask(applyNames);
+}
+
 export interface MapleCodeEditor {
   readonly value: string;
   readonly selectionStart: number;
@@ -84,6 +117,7 @@ export function createCodeEditor(element: HTMLElement, value: string): MapleCode
     lineNumbers: 'on', folding: true, scrollBeyondLastLine: false,
     padding: { top: 16, bottom: 16 }, fixedOverflowWidgets: true,
   });
+  nameGeneratedAccessibilityElements(element);
   const model = instance.getModel()!;
   let api!: MapleCodeEditor;
   api = {
