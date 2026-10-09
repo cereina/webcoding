@@ -54,6 +54,10 @@ const level = (node: Node): number =>
     ? Number((node as Element).tagName[1])
     : 0;
 
+function isWetFootnotes(node: Node): node is Element {
+  return node.nodeType === 1 && (node as Element).tagName === 'ASIDE' && (node as Element).classList.contains('wb-fnote');
+}
+
 function firstMeaningful(parent: Element): Node | undefined {
   return [...parent.childNodes].find(node =>
     node.nodeType === 1 || (node.nodeType === 3 && Boolean(node.textContent?.trim()))
@@ -172,6 +176,17 @@ export function wrapHeadingSections(source: string): string {
   const { page, template, root } = parsedRoot(source);
   let changed = syncHeadingSectionHierarchy(root);
 
+  // WET-BOEW footnotes are a self-contained component. If legacy/content edits
+  // placed them inside a section, move them to the nearest main container (or
+  // the document root) before heading sections are rebuilt.
+  for (const footnotes of [...root.querySelectorAll<HTMLElement>('aside.wb-fnote')]) {
+    const enclosingSection = footnotes.closest('section');
+    if (!enclosingSection) continue;
+    const destination = enclosingSection.closest('main') ?? root;
+    destination.append(footnotes);
+    changed = true;
+  }
+
   function group(parent: Element | DocumentFragment): void {
     // Never restructure navigation, tables, lists, or other self-contained components.
     for (const child of [...parent.children]) {
@@ -182,6 +197,10 @@ export function wrapHeadingSections(source: string): string {
     const alreadySection = parent.nodeType === 1 && (parent as Element).tagName === 'SECTION' && first && level(first);
     const stack: { level: number; section: Element }[] = [];
     for (const node of nodes) {
+      if (isWetFootnotes(node)) {
+        stack.length = 0;
+        continue;
+      }
       const headingLevel = level(node);
       if (headingLevel) {
         while (stack.length && stack[stack.length - 1]!.level >= headingLevel) stack.pop();
