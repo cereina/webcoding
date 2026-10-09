@@ -381,11 +381,87 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     }catch(error){elements.mergeFeedback.textContent=(error as Error).message;}
   };
 
+  function complexHeaderSelections(item:TableItem):{rows:Set<number>;columns:Set<number>;width:number}{
+    const {grid}=tableGrid(item);
+    const width=Math.max(0,...grid.map(row=>row.length));
+    const rows=new Set<number>();
+    item.rows.forEach((row,r)=>{
+      if(row.cells.length && [...row.cells].every(cell=>cell.tagName==='TH' && ['col','colgroup'].includes(cell.scope))) rows.add(r);
+    });
+    const columns=new Set<number>();
+    for(let c=0;c<width;c++){
+      let hasDataRow=false,valid=true;
+      const seen=new Set<HTMLTableCellElement>();
+      for(let r=0;r<item.rows.length;r++){
+        if(rows.has(r)) continue;
+        hasDataRow=true;
+        const cell=grid[r]?.[c];
+        if(!cell){valid=false;break;}
+        if(seen.has(cell)) continue;
+        seen.add(cell);
+        if(cell.tagName!=='TH' || !['row','rowgroup'].includes(cell.scope)){valid=false;break;}
+      }
+      if(hasDataRow&&valid) columns.add(c);
+    }
+    return {rows,columns,width};
+  }
+
+  function applyComplexHeaderBand(item:TableItem,axis:HeaderAxis,index:number,enabled:boolean):void{
+    const {positions}=tableGrid(item);
+    const state=complexHeaderSelections(item);
+    if(axis==='row'){
+      if(index<0||index>=item.rows.length) throw new Error('Choose a valid heading row.');
+      enabled?state.rows.add(index):state.rows.delete(index);
+    }else{
+      if(index<0||index>=state.width) throw new Error('Choose a valid heading column.');
+      enabled?state.columns.add(index):state.columns.delete(index);
+    }
+
+    const affected=positions.filter(position=>axis==='row'
+      ? position.row===index
+      : index>=position.col && index<position.col+position.width);
+
+    const plans=affected.map(position=>{
+      const row=item.rows[position.row];
+      const column=row?[...row.cells].indexOf(position.cell):-1;
+      const selectedRow=state.rows.has(position.row);
+      const selectedColumn=[...state.columns].some(col=>col>=position.col&&col<position.col+position.width);
+      const currentScope=position.cell.tagName==='TH'?position.cell.scope:'';
+      let scope='';
+      if(selectedRow) scope=position.width>1?'colgroup':'col';
+      else if(selectedColumn) scope=position.height>1?'rowgroup':'row';
+      else if(axis==='row' && !['col','colgroup'].includes(currentScope)) scope=currentScope;
+      else if(axis==='column' && !['row','rowgroup'].includes(currentScope)) scope=currentScope;
+      return {row:position.row,column,scope};
+    }).filter(plan=>plan.column>=0);
+
+    for(const plan of plans){
+      const cell=item.rows[plan.row]?.cells[plan.column];
+      if(!cell) continue;
+      const currentScope=cell.tagName==='TH'?cell.scope:'';
+      const shouldChange=plan.scope
+        ? cell.tagName!=='TH'||currentScope!==plan.scope
+        : cell.tagName==='TH';
+      if(shouldChange) setCellHeader(item,plan.row,plan.column,plan.scope);
+    }
+  }
+
   function headerOptions(axis:HeaderAxis,target:HTMLElement,count:number,selected:ReadonlySet<number>):void{
     target.replaceChildren();const item=currentItem();
+    let complexState:ReturnType<typeof complexHeaderSelections>|undefined;
+    if(item.complex){try{complexState=complexHeaderSelections(item);}catch{complexState=undefined;}}
     for(let i=0;i<count;i++){
-      const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=selected.has(i);input.disabled=item.complex;
-      input.addEventListener('change',()=>{try{rememberMutation(()=>setTableHeaders(item,axis,i,input.checked));show(active,true);}catch(error){elements.mergeFeedback.textContent=(error as Error).message;}});
+      const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';
+      input.checked=item.complex
+        ? !!complexState && (axis==='row'?complexState.rows.has(i):complexState.columns.has(i))
+        : selected.has(i);
+      input.disabled=item.complex&&!complexState;
+      input.addEventListener('change',()=>{
+        try{
+          rememberMutation(()=>item.complex?applyComplexHeaderBand(item,axis,i,input.checked):setTableHeaders(item,axis,i,input.checked));
+          show(active,true);
+        }catch(error){elements.mergeFeedback.textContent=(error as Error).message;show(active,true);}
+      });
       label.append(input,`${axis==='row'?'Row':'Column'} ${i+1}`);target.append(label);
     }
   }
@@ -405,9 +481,11 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     }
     refreshPicker();elements.picker.value=String(active);
     elements.caption.value=item.table.caption?.textContent||'';
+    let headerColumnCount=item.width;
+    if(item.complex){try{headerColumnCount=complexHeaderSelections(item).width;}catch{headerColumnCount=item.width;}}
     headerOptions('row',elements.headerRows,item.rows.length,item.headerRows);
-    headerOptions('column',elements.headerColumns,item.width,item.headerColumns);
-    elements.warning.textContent=item.complex?'This table contains merged cells or uneven rows. Use individual cell roles, guided header relationships, merge selection, and split controls. Row and column insertion or removal stays disabled to protect the structure.':'Leading column-heading rows move into the table head. Heading columns stay in the table body. Review the relationships before publishing.';
+    headerOptions('column',elements.headerColumns,headerColumnCount,item.headerColumns);
+    elements.warning.textContent=item.complex?'This table contains merged cells or uneven rows. Complete heading rows and columns can be marked here; merged heading cells automatically use colgroup or rowgroup. For unusual relationships, use individual cell roles or guided header relationships. Row and column insertion or removal stays disabled to protect the structure.':'Leading column-heading rows move into the table head. Heading columns stay in the table body. Review the relationships before publishing.';
     elements.analysis.replaceChildren();
     preview();cellSettings();
   }
