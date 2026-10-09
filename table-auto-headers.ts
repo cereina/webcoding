@@ -26,8 +26,10 @@ function detectHeaderRows(item: TableItem): number {
   return count;
 }
 
-function detectRowHeaderColumns(item: TableItem): number {
-  const rows = item.rows.filter(row => !['THEAD', 'TFOOT'].includes(row.parentElement?.tagName ?? ''));
+function detectRowHeaderColumns(item: TableItem, headerRows: number): number {
+  const rows = item.rows.filter((row, index) =>
+    index >= headerRows && !['THEAD', 'TFOOT'].includes(row.parentElement?.tagName ?? '')
+  );
   let maximum = 0;
   for (const row of rows) {
     let count = 0;
@@ -42,7 +44,7 @@ function detectRowHeaderColumns(item: TableItem): number {
 
 function analyzeStructure(item: TableItem, positions: Position[]): StructureAnalysis {
   const headerRows = detectHeaderRows(item);
-  const rowHeaderColumns = detectRowHeaderColumns(item);
+  const rowHeaderColumns = detectRowHeaderColumns(item, headerRows);
   const mergedHeaderCells = positions.filter(p => p.cell.tagName === 'TH' && (p.height > 1 || p.width > 1)).length;
   const mergedDataCells = positions.filter(p => p.cell.tagName === 'TD' && (p.height > 1 || p.width > 1)).length;
   const existingHeadersAttributes = item.table.querySelectorAll('td[headers], th[headers]').length;
