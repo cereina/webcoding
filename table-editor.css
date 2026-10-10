@@ -33,3 +33,10 @@
 
 /* Keep one vertical scrollbar for the main editor. The left settings column scrolls independently so all controls remain reachable. */
 .table-stage-header{order:1}.table-auto{order:2}.merge-toolbar{order:3}.table-preview-scroll{order:4}.table-legend{order:5}#table-warning{order:6}.table-cleanup{order:7}
+
+.relationship-report { padding: 1rem; border: 1px solid #64748b; border-radius: .5rem; background: #f8fafc; color: #172b4d; margin-block: .75rem; }
+.relationship-report h4 { margin: 0 0 .5rem; }
+#table-visual .relationship-heading { background: #dbeafe; color: #172b4d; box-shadow: inset 0 -5px #174ea6; }
+#table-visual .relationship-issue { border: 2px dashed #994100; }
+#table-visual .relationship-selected { outline: 5px double #172b4d; outline-offset: -5px; }
+#table-visual td:focus-visible, #table-visual th:focus-visible { outline: 3px solid #174ea6; outline-offset: 2px; }
