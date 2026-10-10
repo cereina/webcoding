@@ -1,3 +1,4 @@
+import { inspectTableRelationships } from './table-accessibility.ts';
 import { assignTableHeaders } from './table-auto-headers.ts';
 import { mergeCells, splitCell, tableGrid } from './table-merge.ts';
 import { editCellText, changeTableStructure, setCellHeader, associateCellHeaders, removeTableParagraphs, keepOnlyTableTags, removeUnnecessaryTableAttributes } from './table-model.ts';
@@ -77,6 +78,26 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
   let selectedCells = new Set<HTMLTableCellElement>();
   let anchorCell: HTMLTableCellElement | undefined;
   let guidedHeaders = false;
+  let visualizeRelationships = false;
+  const visualizerButton = document.createElement('button');
+  visualizerButton.type = 'button';
+  visualizerButton.className = 'button secondary';
+  visualizerButton.textContent = 'Visualize accessibility';
+  visualizerButton.setAttribute('aria-pressed', 'false');
+  const relationshipReport = document.createElement('section');
+  relationshipReport.className = 'relationship-report';
+  relationshipReport.id = 'table-relationship-report';
+  relationshipReport.setAttribute('aria-label', 'Table accessibility relationships');
+  relationshipReport.setAttribute('aria-live', 'polite');
+  relationshipReport.hidden = true;
+  visualizerButton.setAttribute('aria-controls', relationshipReport.id);
+  elements.visual.parentElement!.before(visualizerButton, relationshipReport);
+  visualizerButton.onclick = () => {
+    visualizeRelationships = !visualizeRelationships;
+    if (visualizeRelationships) guidedHeaders = false;
+    visualizerButton.setAttribute('aria-pressed', String(visualizeRelationships));
+    preview(); cellSettings();
+  };
   let draft: TableDraft = { source: '', tables: [] }, active = 0, baseSource = '';
   const undoStack: string[] = [];
 
@@ -204,6 +225,9 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
 
   function preview(): void {
     const item=draft.tables[active];
+    relationshipReport.hidden = !visualizeRelationships || !item;
+    relationshipReport.replaceChildren();
+    visualizerButton.disabled = !item;
     if(!item) {
       elements.visual.innerHTML='<div class="table-empty-state"><strong>No table yet.</strong><span>Choose one of the starting templates to add a table to this draft.</span></div>';
       elements.name.textContent='No table selected';
@@ -228,12 +252,41 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
 
     const target=primaryCell();
     const related=target ? new Set(relationshipHeaders(item,target)) : new Set<HTMLTableCellElement>();
+    let inspected: ReturnType<typeof inspectTableRelationships> | undefined;
+    if (visualizeRelationships) {
+      const title = document.createElement('h4');
+      title.textContent = 'Table Accessibility Visualizer';
+      const help = document.createElement('p');
+      help.textContent = 'Select a cell to inspect it. Double outline: selected cell. Blue underline: associated heading. Dashed border: needs review. This inspection does not change your table or simulate a screen reader.';
+      relationshipReport.append(title, help);
+      try {
+        inspected = inspectTableRelationships(item);
+        const summary = document.createElement('p');
+        summary.textContent = `${[...inspected.values()].filter(value => value.issues.length).length} cells need review. ${item.table.caption?.textContent?.trim() ? 'Caption present.' : 'No caption: consider adding a descriptive table title.'}`;
+        relationshipReport.append(summary);
+        const details = target && inspected.get(target);
+        if (details) {
+          const description = document.createElement('p');
+          description.textContent = `Selected cell: ${target.textContent?.trim() || '(empty)'}. ${details.method === 'explicit' ? 'Explicit headers links (including linked parent headings)' : 'Supported scope relationships'}: ${details.headings.map(h => h.textContent?.trim() || '(empty heading)').join(' → ') || 'none'}.`;
+          relationshipReport.append(description);
+          const list = document.createElement('ul');
+          for (const issue of details.issues) { const li = document.createElement('li'); li.textContent = issue; list.append(li); }
+          relationshipReport.append(list);
+        }
+      } catch (error) { const message = document.createElement('p'); message.textContent = (error as Error).message; relationshipReport.append(message); }
+    }
     const shown=elements.visual.querySelector('table');
     if(shown) [...shown.rows].forEach((row,r)=>[...row.cells].forEach((shownCell,c)=>{
       const sourceCell=item.rows[r]?.cells[c];
       if(!sourceCell) return;
       shownCell.tabIndex=0;
       shownCell.setAttribute('aria-label',`Row ${r+1}, cell ${c+1}: ${shownCell.textContent}`);
+      if (visualizeRelationships && inspected) {
+        if (sourceCell === target) shownCell.classList.add('relationship-selected');
+        if (target && inspected.get(target)?.headings.includes(sourceCell)) shownCell.classList.add('relationship-heading');
+        if (inspected.get(sourceCell)?.issues.length) shownCell.classList.add('relationship-issue');
+        shownCell.setAttribute('aria-label', `${shownCell.getAttribute('aria-label')}. ${inspected.get(sourceCell)?.issues.length ? 'Needs review.' : ''} ${sourceCell === target ? 'Selected.' : ''}`);
+      }
       if(selectedCells.has(sourceCell)) shownCell.classList.add('selected-cell');
       if(guidedHeaders && sourceCell===target) shownCell.classList.add('header-target');
       if(guidedHeaders && related.has(sourceCell)) shownCell.classList.add('related-header');
@@ -241,14 +294,16 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
         if(guidedHeaders && sourceCell.tagName==='TH' && sourceCell!==target) { toggleRelationship(sourceCell); return; }
         if(event?.shiftKey && anchorCell) selectRectangle(sourceCell); else selectSingle(sourceCell);
         preview(); cellSettings();
+        const refreshed = elements.visual.querySelector('table')?.rows[r]?.cells[c];
+        refreshed?.focus({ preventScroll: true });
       };
       shownCell.onclick=event=>{event.stopPropagation();choose(event);};
-      shownCell.ondblclick=event=>{event.preventDefault();event.stopPropagation();selectSingle(sourceCell);cellSettings();beginInlineEdit(shownCell,sourceCell);};
+      shownCell.ondblclick=event=>{if(visualizeRelationships)return;event.preventDefault();event.stopPropagation();selectSingle(sourceCell);cellSettings();beginInlineEdit(shownCell,sourceCell);};
       shownCell.onkeydown=event=>{
         if(event.key==='Enter' || event.key===' ') {
           event.preventDefault();event.stopPropagation();
           if(guidedHeaders && sourceCell.tagName==='TH' && sourceCell!==target) toggleRelationship(sourceCell);
-          else { selectSingle(sourceCell); preview(); cellSettings(); }
+          else { choose(); }
         }
       };
     }));
@@ -367,6 +422,7 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     const cell=primaryCell();
     if(!cell||cell.tagName==='TH'){elements.mergeFeedback.textContent='Select a data cell first.';return;}
     guidedHeaders=!guidedHeaders;
+    if (guidedHeaders) { visualizeRelationships = false; visualizerButton.setAttribute('aria-pressed', 'false'); }
     selectedCells=new Set([cell]);anchorCell=cell;
     elements.mergeFeedback.textContent=guidedHeaders?'Guided relationships are on. Click each heading that describes the selected data cell.':'Guided relationships are off.';
     preview();cellSettings();
