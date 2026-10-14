@@ -6,7 +6,7 @@ RUN node scripts/install-linux-build.mjs
 COPY . .
 RUN npm run build
 
-FROM nginx:1.30.5-alpine3.24
+FROM nginx:1.31-alpine3.24
 ENV PORT=8080
 COPY deploy/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
