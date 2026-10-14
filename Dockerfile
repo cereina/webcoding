@@ -1,7 +1,8 @@
 FROM node:22.23.3-alpine3.24 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+COPY scripts/install-linux-build.mjs ./scripts/install-linux-build.mjs
+RUN node scripts/install-linux-build.mjs
 COPY . .
 RUN npm run build
 
