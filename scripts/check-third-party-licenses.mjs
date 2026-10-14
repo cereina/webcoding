@@ -5,6 +5,7 @@ const root = process.cwd();
 const lock = JSON.parse(await fs.readFile(path.join(root, 'package-lock.json'), 'utf8'));
 const entries = Object.keys(lock.packages ?? {}).filter(key => key.startsWith('node_modules/'));
 const problems = [];
+let inspected = 0;
 
 const permissiveAlternative = /\b(?:MIT|ISC|BSD(?:-2-Clause|-3-Clause)?|Apache-2\.0|MPL-2\.0|Python-2\.0|PSF-2\.0|0BSD|CC0-1\.0|Unlicense|W3C|Unicode-3\.0|BlueOak-1\.0\.0)\b/i;
 const prohibited = /\b(?:AGPL(?:-[0-9.]+)?|SSPL(?:-[0-9.]+)?|BUSL(?:-[0-9.]+)?|Commons Clause)\b/i;
@@ -19,6 +20,7 @@ for (const packageKey of entries) {
     continue;
   }
 
+  inspected++;
   const name = pkg.name || packageKey.replace(/^node_modules\//, '');
   const version = pkg.version || lock.packages?.[packageKey]?.version || 'unknown';
   const expression = typeof pkg.license === 'string'
@@ -30,7 +32,7 @@ for (const packageKey of entries) {
   let hasPackagedNotice = false;
   try {
     const files = await fs.readdir(packageDir);
-    hasPackagedNotice = files.some(file => /^(?:licen[cs]e|copying|notice)(?:\..+)?$/i.test(file));
+    hasPackagedNotice = files.some(file => /^(?:licen[cs]e|copying|notice)(?:[._-].+)?$/i.test(file));
   } catch {
     // The package may be optional for the current platform.
   }
@@ -54,4 +56,4 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`Third-party license policy check passed for ${entries.length} installed package entries.`);
+console.log(`Third-party license policy check passed for ${inspected} installed packages (${entries.length - inspected} lockfile entries not installed on this platform). This metadata check does not certify notice completeness.`);

@@ -11,7 +11,7 @@ const packageEntries = Object.keys(lock.packages ?? {})
   .filter(key => key.startsWith('node_modules/'))
   .sort((a, b) => a.localeCompare(b));
 
-const licenseFilePattern = /^(?:licen[cs]e|copying|notice)(?:\..+)?$/i;
+const licenseFilePattern = /^(?:licen[cs]e|copying|notice)(?:[._-].+)?$/i;
 const packages = new Map();
 
 function repositoryText(repository) {
@@ -69,6 +69,27 @@ for (const packageKey of packageEntries) {
     }
   }
 
+  // Some packages ship notices under non-standard names or inside source files.
+  const extras = [];
+  if (name === 'monaco-editor') extras.push([path.join(packageDir, 'ThirdPartyNotices.txt'), 'Bundled third-party notices']);
+  if (name === 'isarray') extras.push([path.join(packageDir, 'README.md'), 'README including MIT license']);
+  if (name === 'pako') {
+    for (const file of await fs.readdir(path.join(packageDir, 'lib/zlib'))) {
+      if (!file.endsWith('.js')) continue;
+      const source = await fs.readFile(path.join(packageDir, 'lib/zlib', file), 'utf8');
+      const start = source.indexOf('// (C)');
+      const end = source.indexOf('// 3. This notice may not be removed or altered from any source distribution.');
+      if (start >= 0 && end >= start) texts.push({ filename: `lib/zlib/${file} license header`, value: source.slice(start, end + '// 3. This notice may not be removed or altered from any source distribution.'.length) });
+    }
+  }
+  if (name.startsWith('@esbuild/')) extras.push([path.join(nodeModules, 'esbuild/LICENSE.md'), 'esbuild platform binary license (parent package)']);
+  if (name.startsWith('@rollup/')) extras.push([path.join(nodeModules, 'rollup/LICENSE.md'), 'Rollup platform binary licenses (parent package)']);
+  if (name === 'saxes' && version === '6.0.0') extras.push([path.join(root, 'licenses/saxes-6.0.0.txt'), 'Upstream LICENSE at 211fa0ebec9b628affc09219199639887174bfc3']);
+  for (const [file, filename] of extras) {
+    try { texts.push({ filename, value: (await fs.readFile(file, 'utf8')).trim() }); }
+    catch { console.warn(`Missing supplemental notice: ${file}`); }
+  }
+
   packages.set(dedupeKey, {
     name,
     version,
@@ -119,9 +140,9 @@ for (const pkg of sorted) {
 await fs.mkdir(path.dirname(outputPath), { recursive: true });
 await fs.writeFile(outputPath, lines.join('\n').replace(/\n{4,}/g, '\n\n\n') + '\n', 'utf8');
 
-const missing = sorted.filter(pkg => pkg.license === 'Not declared in package.json' && !pkg.texts.length);
+const missing = sorted.filter(pkg => !pkg.texts.length);
 console.log(`Generated ${path.relative(root, outputPath)} for ${sorted.length} packages.`);
 if (missing.length) {
-  console.warn(`Warning: ${missing.length} package(s) had neither declared license metadata nor packaged license text:`);
+  console.warn(`Warning: ${missing.length} package(s) have no collected license text (metadata alone is not a complete distribution notice):`);
   for (const pkg of missing) console.warn(` - ${pkg.name}@${pkg.version}`);
 }
