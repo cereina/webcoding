@@ -1,0 +1,28 @@
+name: Linux build without optional LZMA
+on:
+  push:
+    branches: [codex/linux-build-without-lzma]
+permissions:
+  contents: read
+jobs:
+  container-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the actual Alpine production image
+        run: docker build --progress=plain -t maple-optional-test .
+      - name: Verify runtime and notices
+        run: |
+          docker run -d --name maple-test -p 8080:8080 maple-optional-test
+          trap 'docker logs maple-test; docker rm -f maple-test' EXIT
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8080/ -o /tmp/maple-index.html; then break; fi
+            sleep 2
+          done
+          grep -q 'Document studio' /tmp/maple-index.html
+          curl --fail --silent http://localhost:8080/THIRD_PARTY_LICENSES.txt -o /tmp/maple-notices.txt
+          if grep -q 'No standalone LICENSE\|@napi-rs/lzma' /tmp/maple-notices.txt; then exit 1; fi
+          grep -q 'dingbat-to-unicode@1.0.2' /tmp/maple-notices.txt
+          docker exec maple-test sh -c 'test ! -d /app/node_modules'
+          echo 'Alpine production image serves the app; notices complete; LZMA absent.'
