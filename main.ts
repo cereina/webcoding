@@ -12,6 +12,8 @@ import { setupHeadingEditor } from './heading-editor.ts';
 import { linkFootnotes } from './footnotes.ts';
 import { convertDocxSafely } from './docx-import.ts';
 import { getElement } from './dom.ts';
+import { setupImageEditor } from './image-editor.ts';
+import { setupImageExport } from './image-export.ts';
 
 document.documentElement.dataset.mapleBuild = 'maple-security-runtime-v1';
 const example = `<h1>Getting started with your project</h1>
@@ -58,6 +60,8 @@ function refresh() {
 }
 function commit(value: string, message?: string) { editor.replace(value); refresh(); if (message) notify(message); }
 setupTableEditor({ getSource: () => editor.value, commit, notify });
+setupImageEditor({ getSource: () => editor.value, commit });
+setupImageExport({ getSource: () => editor.value, commit });
 setupHeadingEditor({ getSource: () => editor.value, commit });
 setupTocEditor({ getSource: () => editor.value, getLanguage: () => getElement('language', 'select').value, commit });
 refresh();
@@ -223,5 +227,5 @@ function exported() { return formatHtml(getElement('export-type', 'select').valu
 getElement('copy', 'button').onclick = async () => { try { await navigator.clipboard.writeText(exported()); notify('Formatted HTML copied to your clipboard.'); } catch { notify('Clipboard access is unavailable. Use Download HTML instead.'); } };
 getElement('download', 'button').onclick = () => {
   const url = URL.createObjectURL(new Blob([exported()], { type: 'text/html;charset=utf-8' }));
-  const a = document.createElement('a'); a.href = url; a.download = 'document.html'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('Clean HTML downloaded. Embedded document images are included.');
+  const a = document.createElement('a'); a.href = url; a.download = 'document.html'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notify('HTML downloaded. Keep any separate image files at the paths used in your HTML.');
 };

@@ -40,3 +40,33 @@
 #table-visual .relationship-issue { border: 2px dashed #994100; }
 #table-visual .relationship-selected { outline: 5px double #172b4d; outline-offset: -5px; }
 #table-visual td:focus-visible, #table-visual th:focus-visible { outline: 3px solid #174ea6; outline-offset: 2px; }
+
+/* Tabbed workspace: fixed chrome, flexible table, bounded tool disclosures. */
+.table-dialog{width:calc(100vw - 32px);max-width:1800px;height:calc(100dvh - 32px);max-height:calc(100dvh - 32px);border-radius:12px}
+.table-dialog [hidden]{display:none!important}
+.table-dialog-header{padding:16px 24px;align-items:center;gap:20px}
+.table-dialog-header h2{font-size:23px;margin:0 0 4px}.table-dialog-header p:not(.eyebrow){font-size:13px;line-height:1.4}
+.table-switcher{display:flex;align-items:center;gap:10px;margin-left:auto;min-width:0}.table-switcher label{font-size:14px;font-weight:650}.table-switcher select{width:clamp(160px,24vw,360px);min-width:0}.table-switcher .table-nav{margin:0;gap:5px}.table-switcher .button{white-space:nowrap}
+.table-editor-tabs{display:flex;gap:24px;padding:0 24px;border-bottom:1px solid #cbdad4;flex-shrink:0}
+.table-editor-tabs [role=tab]{font:inherit;font-weight:650;font-size:15px;padding:13px 8px;background:none;border:0;border-bottom:3px solid transparent;color:#435d54;cursor:pointer;min-height:46px}
+.table-editor-tabs [aria-selected=true]{color:#14594b;border-bottom-color:#136c60;background:#eff7f3}.table-editor-tabs button:focus-visible{outline:3px solid #bd620c;outline-offset:-3px}
+.table-tool-panels{flex-shrink:0;background:#f5f8f4;border-bottom:1px solid #dbe4e2;max-height:36%;overflow:auto}
+.table-tool-panel{display:grid;grid-template-columns:1.1fr 1.1fr 1fr;gap:24px;padding:14px 24px;align-items:start}
+.table-tool-panel>div,.table-tool-panel>details{min-width:0}.table-tool-panel h3{font-size:14px;margin:0 0 9px}.table-tool-panel label{display:block;font-size:14px;font-weight:650;margin-bottom:6px}
+.table-dialog input:not([type=checkbox]),.table-dialog select,.table-dialog textarea{font:inherit;font-size:14px;padding:8px 10px;border:1px solid #9eb3a8;border-radius:6px;background:white;color:#172b35;min-height:38px}
+.table-tool-panel input:not([type=checkbox]),.table-tool-panel select,.table-tool-panel textarea{width:100%}.table-tool-panel textarea{height:56px;min-height:44px}
+.table-dialog input:focus-visible,.table-dialog select:focus-visible,.table-dialog textarea:focus-visible,.table-dialog summary:focus-visible{outline:3px solid #bd620c;outline-offset:2px}
+.table-tool-panel .table-help,.table-tool-panel .table-help p{padding:0;border:0;background:none;font-size:12px;line-height:1.45;margin:7px 0 0;color:#496357}
+.table-tool-panel .button{font-size:13px;padding:8px 10px;min-height:36px}
+.table-tool-panel #cell-settings{padding:0;margin:0;border:0}.table-tool-panel #cell-settings>label{margin:0 0 6px}.table-structure{margin:0;gap:6px}
+.table-tool-panel .merge-toolbar,.table-tool-panel .table-auto,.table-tool-panel .table-cleanup{padding:0;background:none;border:0;margin:0}.table-tool-panel .merge-toolbar p{font-size:12px}
+.table-tool-details summary,.advanced-headers summary{cursor:pointer;font-size:14px;font-weight:650;padding:8px 0;color:#254c40;min-height:36px}.table-tool-details fieldset{border:0;padding:8px 0;margin:0}.table-tool-details legend{font-size:14px;font-weight:650}.template-buttons{gap:6px}.table-templates>.table-help{margin:0 0 8px}
+.guided-headers{margin-top:8px}.guided-headers p{max-width:400px}.advanced-headers{margin:0}#table-visualizer-tools{margin-top:8px}#table-analysis{max-height:120px}.header-options{max-height:120px;overflow:auto}.header-options label{display:flex;font-size:13px;font-weight:400;margin:0}
+.table-dialog .table-stage{flex:1;min-height:100px;overflow:hidden;padding:12px 24px;gap:8px;align-self:stretch}.table-dialog .table-stage>*{order:0}.table-selection{margin-left:auto}.table-selection h3{font-size:13px;font-weight:500;color:#435d54}
+.table-dialog .table-preview-scroll{flex:1;min-height:70px;overflow:auto;scrollbar-gutter:stable}.table-dialog #table-visual{padding:12px}.table-dialog #table-visual th,.table-dialog #table-visual td{padding:10px 12px}.table-dialog .table-review{display:flex;gap:20px;align-items:flex-start;max-height:30%;overflow:auto;flex-shrink:0;font-size:13px}.table-review>details{flex:1}.table-review summary{cursor:pointer;padding:4px 0}.table-review #table-warning{padding:8px;font-size:12px}.table-review #table-relationship-slot{flex:2;min-width:0}.table-review #table-relationship-slot:has(> [hidden]){display:none}.table-review .relationship-report{margin:0;padding:10px;font-size:13px}.table-review .relationship-report p{font-size:13px;line-height:1.45}.table-review .relationship-report h4{font-size:14px}
+.table-dialog #merge-feedback{font-size:13px;margin:0;max-height:48px;overflow:auto}.table-dialog-footer{padding:12px 24px;gap:12px;position:static}.table-dialog-footer .dialog-actions{display:flex;gap:8px}.table-dialog-footer #table-status{max-width:none}
+@media(max-width:900px){.table-dialog-header{flex-wrap:wrap;padding:12px 16px}.table-dialog-header>div:first-child{flex:1}.table-switcher{order:3;width:100%;margin:0}.table-switcher select{flex:1;width:auto}.table-editor-tabs{padding:0 16px;gap:12px}.table-tool-panel{padding:12px 16px;gap:16px;grid-template-columns:1fr 1fr}.table-tool-panel> :last-child{grid-column:1/-1}.table-dialog .table-stage{padding:10px 16px}.table-dialog-footer{padding:10px 16px;flex-wrap:wrap}.table-dialog-footer #table-status{font-size:12px}}
+@media(max-width:520px){.table-dialog{width:100vw;height:100dvh;max-height:100dvh;max-width:100vw;border-radius:0}.table-tool-panel{grid-template-columns:1fr}.table-dialog-header p:not(.eyebrow){display:none}.table-switcher .button{font-size:12px;padding:6px}.table-dialog-footer .dialog-actions{width:100%;flex-wrap:wrap}.table-dialog-footer .button{flex:1;font-size:12px}.table-editor-tabs{justify-content:space-between;gap:0}.table-editor-tabs [role=tab]{font-size:14px}.table-dialog .table-review{display:block}.table-stage-header{gap:4px}.table-selection{width:100%;margin:0}}
+
+.table-tool-panel>*{order:0}.table-tool-panel>.merge-toolbar{order:0}body:has(#table-dialog[open]){overflow:hidden}
+.table-style-checklist label{display:flex!important;align-items:center;gap:8px;font-weight:400;margin:8px 0}.table-style-checklist input[type=checkbox]{width:18px;height:18px;flex-shrink:0}.table-style-checklist code{font-size:.85em}.table-style-checklist{min-width:0}.table-style-checklist label{flex-wrap:wrap}

@@ -2680,7 +2680,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ============================================================
-dompurify@3.4.16
+dompurify@3.4.17
 Declared license: (MPL-2.0 OR Apache-2.0)
 Homepage: https://github.com/cure53/DOMPurify
 Repository: git://github.com/cure53/DOMPurify.git
@@ -7275,7 +7275,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 ============================================================
-vite@7.3.6
+vite@7.3.7
 Declared license: MIT
 Homepage: https://vite.dev
 Repository: git+https://github.com/vitejs/vite.git

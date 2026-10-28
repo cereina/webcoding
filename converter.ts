@@ -1,5 +1,6 @@
 import { isNoteTarget } from './footnotes.ts';
 import DOMPurify from 'dompurify';
+import { isLocalImagePath } from './image-export-model.ts';
 const escapeHtml = (value: unknown): string => String(value).replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'} as Record<string, string>)[c] ?? c);
 
 export interface CleanupReportItem { label: string; count: number; details: string[]; }
@@ -31,6 +32,8 @@ const EMPTY_ELEMENT_EXCEPTIONS = new Set(['BR', 'HR', 'IMG', 'COL', 'TD', 'TH'])
 function isVisuallyEmpty(element: Element): boolean {
   if (EMPTY_ELEMENT_EXCEPTIONS.has(element.tagName)) return false;
   if (element.id) return false;
+  // Textless elements can still carry an accessible name or relationship.
+  if (['aria-label', 'aria-labelledby', 'aria-describedby', 'role'].some(attribute => element.hasAttribute(attribute))) return false;
   if (element.children.length) return false;
   return (element.textContent ?? '').replace(/[\s\u00a0\u200b\ufeff]/g, '') === '';
 }
@@ -114,7 +117,7 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
   });
   template.innerHTML = DOMPurify.sanitize(template.innerHTML, {
     ALLOWED_TAGS: ['h1','h2','h3','h4','h5','h6','p','br','hr','div','span','section','article','header','footer','aside','nav','main','strong','b','em','i','u','s','small','sup','sub','mark','abbr','blockquote','cite','address','pre','code','ul','ol','li','dl','dt','dd','a','img','figure','figcaption','table','caption','colgroup','col','thead','tbody','tfoot','tr','th','td','details','summary'],
-    ALLOWED_ATTR: [...(sourceAttribute ? [sourceAttribute] : []), 'data-maple-toc','class','id','href','title','src','alt','width','height','scope','headers','span','colspan','rowspan','start','value','reversed','lang','dir','open','role','aria-label','aria-labelledby','aria-describedby','aria-hidden'],
+    ALLOWED_ATTR: [...(sourceAttribute ? [sourceAttribute] : []), 'data-maple-toc','data-maple-filename','class','id','href','title','src','alt','width','height','scope','headers','span','colspan','rowspan','start','value','reversed','lang','dir','open','role','aria-label','aria-labelledby','aria-describedby','aria-hidden'],
     ALLOW_DATA_ATTR: false, ALLOW_ARIA_ATTR: false,
     FORBID_TAGS: ['style','script','iframe','object','embed','form','input','button'],
   });
@@ -128,7 +131,7 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
       const classes = [...element.classList].filter((name) => /^[a-z][a-z0-9_-]*$/i.test(name) && !/^(?:Mso|WordSection)/i.test(name));
       if (classes.length) element.className = classes.join(' '); else element.removeAttribute('class');
     }
-    if (element.tagName === 'IMG' && !/^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(element.getAttribute('src') || '')) {
+    if (element.tagName === 'IMG' && !/^data:image\/(?:png|jpeg|gif|webp);base64,[a-z0-9+/=\s]+$/i.test(element.getAttribute('src') || '') && !isLocalImagePath(element.getAttribute('src') || '')) {
       const replacement = document.createElement('span');
       replacement.textContent = `[Image omitted${element.getAttribute('alt') ? `: ${element.getAttribute('alt')}` : ': upload the DOCX to extract embedded images'}]`;
       element.replaceWith(replacement);
@@ -139,6 +142,9 @@ export function cleanHtml(input: string, sourceAttribute?: string): string {
     }
   });
   template.content.querySelectorAll('span').forEach((span) => { if (!span.attributes.length) span.replaceWith(...span.childNodes); });
+  // Apply the same transformations advertised by the cleanup preview.
+  unwrapStrongFromHeadings(template.content);
+  removeEmptyElements(template.content);
   return template.innerHTML.trim();
 }
 

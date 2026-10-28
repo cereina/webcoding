@@ -6,6 +6,8 @@ import { cleanHtml } from './converter.ts';
 import { createTableDraft, setTableCaption, setTableHeaders, applyTableDraft, type TableDraft, type TableItem, type HeaderAxis } from './table-model.ts';
 import { getElement } from './dom.ts';
 import './table-editor.css';
+import { createTableStyleChecklist, setTableStyle } from './table-styles.ts';
+import { setupTableEditorTabs } from './table-editor-tabs.ts';
 
 interface TableEditorOptions {
   getSource: () => string;
@@ -74,6 +76,7 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     splitDialog: getElement('split-dialog', 'dialog'),
   };
 
+  const activateTab = setupTableEditorTabs(elements.dialog);
   let selectedRow = 0, selectedColumn = 0;
   let selectedCells = new Set<HTMLTableCellElement>();
   let anchorCell: HTMLTableCellElement | undefined;
@@ -91,7 +94,8 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
   relationshipReport.setAttribute('aria-live', 'polite');
   relationshipReport.hidden = true;
   visualizerButton.setAttribute('aria-controls', relationshipReport.id);
-  elements.visual.parentElement!.before(visualizerButton, relationshipReport);
+  getElement('table-visualizer-tools', 'div').append(visualizerButton);
+  getElement('table-relationship-slot', 'div').append(relationshipReport);
   visualizerButton.onclick = () => {
     visualizeRelationships = !visualizeRelationships;
     if (visualizeRelationships) guidedHeaders = false;
@@ -100,6 +104,11 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
   };
   let draft: TableDraft = { source: '', tables: [] }, active = 0, baseSource = '';
   const undoStack: string[] = [];
+  const syncTableStyles = createTableStyleChecklist(document.getElementById('table-panel-content')!, (name, enabled) => {
+    if (!draft.tables.length) return;
+    rememberMutation(() => setTableStyle(currentItem(), name, enabled));
+    preview();
+  });
 
   const label = (item: TableItem, i: number): string => `Table ${i + 1} — ${item.table.caption?.textContent?.trim() || 'Untitled table'}`;
 
@@ -224,7 +233,12 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
   }
 
   function preview(): void {
+    syncTableStyles(draft.tables[active]);
     const item=draft.tables[active];
+    for (const id of ['merge-selection', 'split-cell', 'analyze-table-headers', 'remove-table-paragraphs', 'keep-table-tags', 'clean-table-attributes', 'cell-text-save', 'guide-headers']) {
+      getElement(id, 'button').disabled = !item;
+    }
+    getElement('cell-kind', 'select').disabled = !item;
     relationshipReport.hidden = !visualizeRelationships || !item;
     relationshipReport.replaceChildren();
     visualizerButton.disabled = !item;
@@ -551,6 +565,10 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     refreshPicker();elements.caption.value='';elements.caption.disabled=true;
     elements.headerRows.replaceChildren();elements.headerColumns.replaceChildren();getElement('cell-settings','div').hidden=true;
     elements.warning.textContent='Choose a starting template to create the first table. Nothing is added to the document until you Apply changes.';
+    getElement('cell-position', 'h3').textContent = 'Select a cell';
+    for (const id of ['row-add', 'row-remove', 'column-add', 'column-remove']) getElement(id, 'button').disabled = true;
+    const templates = elements.dialog.querySelector<HTMLDetailsElement>('#table-panel-structure > details');
+    if (templates) templates.open = true;
     preview();
   }
 
@@ -570,11 +588,17 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
     undoStack.push(before);if(undoStack.length>50)undoStack.shift();
     draft=createTableDraft(next);active=draft.tables.length-1;elements.caption.disabled=false;
     refreshPicker();show(active);
+    const templateDetails = button.closest('details');
+    if (templateDetails) {
+      templateDetails.open = false;
+      templateDetails.querySelector('summary')?.focus();
+    }
     elements.mergeFeedback.textContent='Template added to this draft. Replace its sample text before publishing.';
     updateStatus();
   });
 
   elements.open.onclick=()=>{
+    activateTab('structure');
     baseSource=getSource();draft=createTableDraft(baseSource);active=0;undoStack.length=0;elements.caption.disabled=false;
     refreshPicker();
     if(draft.tables.length)show(0);else renderEmpty();
