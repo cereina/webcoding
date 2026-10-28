@@ -1,0 +1,43 @@
+name: Container license inventory
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - scripts/inventory-container.py
+      - scripts/inventory-dockerfile.py
+      - .github/workflows/container-licenses.yml
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - scripts/inventory-container.py
+      - scripts/inventory-dockerfile.py
+      - .github/workflows/container-licenses.yml
+  schedule:
+    - cron: '43 9 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Inventory current Linux amd64 base images without running them
+        run: python3 scripts/inventory-dockerfile.py
+      - name: Retain package metadata and packaged notices for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: container-license-inventory
+          path: artifacts/container-licenses/*.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Explain scope
+        run: |
+          echo 'Inventory collected for the base image digests resolved in this run. See the artifact for package versions, declared licenses and packaged notices. This is not legal clearance, a complete SBOM, or proof of the image currently deployed on Railway. Review changed images and non-standard license declarations; use deployed build-log digests for release audits.' >> "$GITHUB_STEP_SUMMARY"

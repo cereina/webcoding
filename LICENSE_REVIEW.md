@@ -1,5 +1,7 @@
 # Dependency license review
 
+For the subsequent Railway Linux/container review dated 2026-10-28, see [CONTAINER_LICENSE_REVIEW.md](CONTAINER_LICENSE_REVIEW.md). It supplements this historical Windows npm review and records remaining container compliance limitations.
+
 Scope: current local Windows installation of Maple Document Studio, based on main commit 3ac8ebe and package-lock.json. This is a technical evidence review, not a legal compliance opinion or security audit.
 
 ## Result

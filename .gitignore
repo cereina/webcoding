@@ -5,6 +5,8 @@ dist/
 
 artifacts/
 *.py
+!scripts/inventory-container.py
+!scripts/inventory-dockerfile.py
 .env
 .env.*
 
