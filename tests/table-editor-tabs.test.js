@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {JSDOM} from 'jsdom';
+import {setupTableEditorTabs} from '../table-editor-tabs.ts';
+test('table tools remain available and keyboard tabs retain entered values',()=>{
+ const dom=new JSDOM(readFileSync(new URL('../index.html',import.meta.url),'utf8'));
+ const d=dom.window.document,dialog=d.querySelector('#table-dialog');
+ setupTableEditorTabs(dialog);
+ const tabs=[...dialog.querySelectorAll('[role=tab]')];
+ tabs[1].click();d.querySelector('#table-caption').value='Annual results';
+ tabs[1].dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
+ assert.equal(tabs[2].getAttribute('aria-selected'),'true');
+ assert.equal(d.activeElement,tabs[2]);
+ assert.equal(d.querySelector('#table-panel-content').hidden,true);
+ tabs[2].dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'Home',bubbles:true}));
+ assert.equal(tabs[0].tabIndex,0);
+ assert.equal(tabs.filter(t=>t.tabIndex===0).length,1);
+ tabs[1].click();assert.equal(d.querySelector('#table-caption').value,'Annual results');
+ for(const id of ['row-add','row-remove','column-add','column-remove','merge-selection','split-cell','cell-text','cell-text-save','cell-kind','guide-headers','cell-headers','table-header-rows','table-header-columns','analyze-table-headers','remove-table-paragraphs','keep-table-tags','clean-table-attributes','table-prev','table-next','table-undo-draft','table-save']) assert.equal(dialog.querySelectorAll('#'+id).length,1,id);
+ assert.equal(dialog.querySelector('#table-visual').closest('[role=tabpanel]'),null);
+ assert.equal(dialog.querySelector('#table-save').closest('[role=tabpanel]'),null);
+ assert.equal(dialog.querySelectorAll('[data-table-template]').length,3);
+});
