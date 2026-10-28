@@ -14,11 +14,11 @@
     "security:audit": "npm audit --audit-level=moderate"
   },
   "dependencies": {
-    "dompurify": "3.4.16",
+    "dompurify": "3.4.17",
     "mammoth": "^1.9.1",
     "monaco-editor": "^0.56.0",
     "parse5": "^8.0.1",
-    "vite": "^7.1.5"
+    "vite": "^7.3.7"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",
@@ -31,7 +31,7 @@
       "argparse": "2.0.1"
     },
     "monaco-editor": {
-      "dompurify": "3.4.16"
+      "dompurify": "3.4.17"
     },
     "source-map-js": "1.2.2"
   }
