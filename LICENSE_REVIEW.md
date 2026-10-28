@@ -12,11 +12,11 @@ The lockfile contains 158 dependency entries; 69 are not installed on this platf
 
 | Dependency | Installed version | Declared license |
 | --- | --- | --- |
-| DOMPurify | 3.4.16 | MPL-2.0 OR Apache-2.0 |
+| DOMPurify | 3.4.17 | MPL-2.0 OR Apache-2.0 |
 | Mammoth | 1.12.3 | BSD-2-Clause |
 | Monaco Editor | 0.56.0 | MIT |
 | parse5 | 8.0.1 | MIT |
-| Vite | 7.3.6 | MIT |
+| Vite | 7.3.7 | MIT |
 | jsdom | 26.1.0 | MIT |
 | tsx | 4.23.13 | MIT |
 | TypeScript | 7.0.2 | Apache-2.0 |
