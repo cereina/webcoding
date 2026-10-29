@@ -80,8 +80,15 @@ def main():
                 name = member.name.removeprefix('./').lstrip('/')
                 if not member.isfile():
                     continue
-                if name in ('lib/apk/db/installed', 'etc/alpine-release', 'etc/apk/repositories') or re.search(
-                        r'(^|/)(licenses?|copying|copyright|notice)([./_-]|$)', name, re.I):
+                if (name in ('lib/apk/db/installed', 'etc/alpine-release', 'etc/apk/repositories',
+                             'docker-entrypoint.sh', 'usr/local/bin/docker-entrypoint.sh',
+                             'etc/nginx/nginx.conf')
+                        or name.startswith('docker-entrypoint.d/')
+                        or (name.endswith('/package.json') and name.startswith(('usr/local/', 'opt/')))
+                        or (name.startswith(('usr/local/', 'opt/'))
+                            and pathlib.PurePosixPath(name).name.lower() in ('readme', 'readme.md'))
+                        or re.search(
+                        r'(^|/)(licenses?|copying|copyright|notice)([./_-]|$)', name, re.I)):
                     if member.size > 8_000_000:
                         raise ValueError('Unexpectedly large evidence file: ' + name)
                     retained[name] = archive.extractfile(member).read().decode('utf-8', errors='replace')

@@ -15,3 +15,5 @@ Third-party licensing information is documented in:
 - public/THIRD_PARTY_LICENSES.txt (generated during builds)
 - public/monaco-LICENSE.txt
 - public/monaco-ThirdPartyNotices.txt
+- public/CONTAINER_THIRD_PARTY_NOTICES.txt
+- /compliance/ on the deployed application (server notices and matching third-party sources)

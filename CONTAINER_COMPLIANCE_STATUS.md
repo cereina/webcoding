@@ -1,0 +1,21 @@
+# Maple container licensing remediation
+
+Scope: personal, website-only use, as confirmed by the owner on 2026-10-28. The owner also confirmed ownership of Maple. Organizational hosting approval is therefore not applicable to this stated scenario. This records technical measures and user attestations, not a legal opinion or a warranty about third-party rights.
+
+## Measures implemented
+
+1. **Server notices and source access.** The deployment generates `/compliance/`, with the application notices, expanded upstream server notices, Node's complete supplied license material, a source manifest and a downloadable archive of 254 checksum-verified Alpine source inputs/patches plus their 53 matching APKBUILD recipes. The source archive retains original upstream licenses in context. FreeType attribution and Docker entrypoint notices are retained explicitly. The image build fails if any input changes or the runtime digest differs from the reviewed image. Sources are available directly; this is not a promise to supply them later.
+2. **Build-tool attribution gaps.** The active build stage uses the same reviewed nginx/Alpine base as the runtime, plus only the Node executable and Node license file copied from the pinned Node image. npm, Corepack and Yarn are not copied into that stage. A repository-owned installer reads the existing lockfile, verifies every package's SHA512, rejects unsafe archive paths/links/unlocked bundled dependencies, and installs the same 87 locked packages with no lifecycle scripts. Thus the seven npm-toolchain packages flagged in the previous review are not included in the active build environment or final runtime. The donor Node image remains an upstream source for the Node executable; no claim is made that its original contents have changed.
+3. **Hosting-related source provision.** Exact source archives, Alpine patches, package recipes, versions and checksums are supplied in the deployed image alongside their notices. The package recipes identify the corresponding upstream Alpine packaging revisions. This provides concrete source material to support applicable source obligations; it does not purport to decide every legal question about conveyance to a hosting provider or prove a reproducible rebuild of every upstream binary. Maple's original application code is not included in this third-party source archive.
+4. **Ownership and organization approval.** Ownership and personal-use scope are recorded from the user. No employer/organization authorization is represented or required by this review's personal-use assumption. Reassess if the use changes to organizational hosting or distribution of container/installable copies.
+
+## Verification and operation
+
+- `node --test tests/container-installer.test.js`: validates locked selection and rejection of tampered/unsafe package archives.
+- `scripts/prepare-container-compliance.mjs`: verifies every retained source input, creates the archive and records its SHA512. `MAPLE_SOURCE_CACHE` optionally points to a local cache; checksums remain mandatory.
+- `.github/workflows/container-build.yml`: builds the actual Linux container and tests the live notice/source endpoints and archive checksum. It checks that npm/Yarn are absent from the final runtime.
+- The generated archive is about 255 MB; it is an optional download and is not loaded by the Maple application. Source inputs are downloaded during Docker builds and are excluded from Git; one small libyuv archive is retained in Git because upstream archive timestamps are unstable. Its content was verified against Alpine's recorded content checksum before pinning the retained archive checksum.
+- New base images require updating the package/source inventory and notices. Pinning an image is evidence control, not a substitute for future security updates.
+- Historical reports `CONTAINER_LICENSE_REVIEW.md` and `CONTAINER_COMPLIANCE_FOLLOWUP.md` describe earlier states; this document describes the remediation.
+
+No mandatory paid license was identified in the reviewed material. These measures resolve the identified technical packaging gaps within the stated scope. They do not certify unknown copyrights, patents, upstream source provenance, Railway contracts, or future modifications.

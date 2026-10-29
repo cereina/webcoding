@@ -1,5 +1,7 @@
 # Railway container license review
 
+For the deeper source, build-tool and hosting-scenario verification, see [CONTAINER_COMPLIANCE_FOLLOWUP.md](CONTAINER_COMPLIANCE_FOLLOWUP.md). It records the owner's website-only use confirmation and supersedes the initial review's broader unknowns where new evidence was obtained.
+
 Reviewed 2026-10-28. This records technical evidence and unresolved questions; it is not a legal compliance certification.
 
 ## Deployment and evidence
