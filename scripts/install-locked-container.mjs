@@ -41,7 +41,7 @@ export function validateArchive(names, details) {
   const entries = names.trim().split('\n');
   assert(entries.length && entries[0], 'Empty archive');
   const root = entries[0].split('/')[0];
-  assert(/^[a-zA-Z0-9_.-]+$/.test(root) && root !== '.' && root !== '..', 'Invalid archive root');
+  assert(/^[a-zA-Z0-9_][a-zA-Z0-9_. -]*$/.test(root), 'Invalid archive root');
   for (const name of entries) {
     assert(name === root || name.startsWith(root + '/'), 'Unexpected archive root');
     assert(!name.includes('\\') && !name.includes('\r') && !name.split('/').includes('..'), 'Unsafe archive path');

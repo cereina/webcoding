@@ -19,4 +19,5 @@ test('installer rejects traversal, links and bundled unlocked modules', () => {
   assert.throws(() => validateArchive('package/link', 'lrwxrwxrwx link'), /links/);
   assert.throws(() => validateArchive('package/node_modules/surprise/index.js', '-rw-r--r-- entry'), /bundled/);
   validateArchive('package/package.json\npackage/lib/index.js\n', '-rw-r--r-- entry\n-rw-r--r-- entry');
+  validateArchive('node v22.20/package.json\nnode v22.20/index.d.ts\n', '-rw-r--r-- entry\n-rw-r--r-- entry');
 });
