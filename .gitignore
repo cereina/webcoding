@@ -4,6 +4,7 @@ dist/
 .npm-cache/
 
 artifacts/
+public/compliance/
 *.py
 !scripts/inventory-container.py
 !scripts/inventory-dockerfile.py

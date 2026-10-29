@@ -1,0 +1,30 @@
+name: Verify deployment container
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test locked installer validation
+        run: node --test tests/container-installer.test.js
+      - name: Build and verify source checksums, licenses and TypeScript
+        run: docker build -t maple-license-check .
+      - name: Verify the runtime serves notices and source archive
+        run: |
+          docker run -d --name maple-check -p 8080:8080 maple-license-check
+          for i in $(seq 1 20); do
+            curl -fsS http://localhost:8080/ >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/compliance/ | grep 'Third-party licenses'
+          curl -fsS http://localhost:8080/compliance/SERVER_NOTICES.txt -o /tmp/maple-server-notices.txt
+          grep -m1 'SERVER THIRD-PARTY' /tmp/maple-server-notices.txt
+          curl -fsSI http://localhost:8080/compliance/runtime-sources.tar.gz
+          docker exec maple-check sh -c 'cd /usr/share/nginx/html/compliance && sha512sum -c runtime-sources.sha512'
+          docker exec maple-check sh -c 'test ! -e /usr/local/lib/node_modules/npm && test ! -e /opt/yarn-v1.22.22'
