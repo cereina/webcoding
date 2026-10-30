@@ -153,3 +153,22 @@ test('individual complex heading edits move the complete band without splitting 
  assert.equal(item.table.tHead.rows[0].cells[0].rowSpan,2);
  assert.equal(item.table.tBodies[0].rows.length,1);
 });
+
+test('Apply completes inferred heading scopes without toggling the selected row', async () => {
+ const {completeSelectedHeaderScopes}=await import('../table-model.ts');
+ const source='<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>';
+ const draft=createTableDraft(source);
+ assert.equal(draft.tables[0].headerRows.has(0),true);
+ assert.equal(draft.tables[0].dirty,false);
+ draft.tables.forEach(completeSelectedHeaderScopes);
+ const output=parse(applyTableDraft(draft));
+ assert.equal(output.querySelectorAll('thead th[scope="col"]').length,2);
+ assert.equal(output.querySelectorAll('tbody td').length,2);
+ const linked=createTableDraft('<table><tr><th id="h">Name</th></tr><tr><td headers="h">Value</td></tr></table>');
+ const original=linked.source;
+ linked.tables.forEach(completeSelectedHeaderScopes);
+ assert.equal(applyTableDraft(linked),original);
+ const complex=createTableDraft('<table><tr><th colspan="2">Group</th></tr><tr><td>1</td><td>2</td></tr></table>');
+ complex.tables.forEach(completeSelectedHeaderScopes);
+ assert.equal(applyTableDraft(complex),complex.source);
+});

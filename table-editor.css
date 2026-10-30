@@ -70,3 +70,28 @@
 
 .table-tool-panel>*{order:0}.table-tool-panel>.merge-toolbar{order:0}body:has(#table-dialog[open]){overflow:hidden}
 .table-style-checklist label{display:flex!important;align-items:center;gap:8px;font-weight:400;margin:8px 0}.table-style-checklist input[type=checkbox]{width:18px;height:18px;flex-shrink:0}.table-style-checklist code{font-size:.85em}.table-style-checklist{min-width:0}.table-style-checklist label{flex-wrap:wrap}
+
+/* Keep cleanup visible directly beneath the table caption. */
+#table-panel-content { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+#table-panel-content .table-cleanup { margin-top: 14px; padding-top: 12px; border-top: 1px solid #cbdad4; }
+#table-panel-content > #cell-settings { grid-column: auto; }
+@media (max-width: 520px) { #table-panel-content { grid-template-columns: minmax(0, 1fr); } }
+/* Expanded tools: use horizontal space rather than collapsed options. */
+.table-dialog { width: 100vw; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+.table-tool-panels { max-height: none; overflow: visible; }
+#table-panel-content { grid-template-columns: minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr); }
+.table-tool-panel { gap: 16px; padding: 10px 18px; }
+.table-tool-panel fieldset { min-width: 0; margin: 0; padding: 4px 0; border: 0; }
+.table-tool-panel legend { font-size: 13px; font-weight: 650; }
+.table-tool-panel .advanced-headers { margin-top: 8px; }
+.table-dialog .table-guidance { flex: 1; }
+.table-dialog .table-guidance h3 { font-size: 13px; margin: 0 0 4px; }
+.table-dialog .table-style-checklist label { margin: 4px 0; font-size: 13px; }
+.table-dialog .table-review { max-height: none; }
+@media (max-width: 900px), (max-height: 700px) {
+ .table-dialog { overflow-y: auto; }
+ .table-dialog .table-stage { flex: 1 0 260px; }
+ .table-dialog-footer { position: sticky; bottom: 0; background: white; z-index: 2; }
+}
+@media (max-width: 900px) { #table-panel-content { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { #table-panel-content { grid-template-columns: 1fr; } }

@@ -1,0 +1,31 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {registerHooks} from 'node:module';
+import {JSDOM} from 'jsdom';
+registerHooks({load(url, context, next) {
+ if(url.endsWith('.css')) return {format:'module',source:'',shortCircuit:true};
+ return next(url,context);
+}});
+globalThis.window=new JSDOM('').window;
+const {setupTableEditor}=await import('../table-editor.ts');
+test('opening an inferred header draft enables Apply without toggling and supports undo/cancel',()=>{
+ const dom=new JSDOM(readFileSync(new URL('../index.html',import.meta.url),'utf8'));
+ for(const key of ['document','DOMParser','HTMLElement','HTMLTableCellElement','Option']) globalThis[key]=dom.window[key];
+ dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
+ dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ const original='<table><tr><th>Name</th><th>Value</th></tr><tr><td>A</td><td>B</td></tr></table>';
+ let source=original;
+ setupTableEditor({getSource:()=>source,commit:html=>source=html,notify:()=>{}});
+ const click=id=>document.getElementById(id).click();
+ click('edit-tables');
+ assert.equal(document.querySelector('#table-header-rows input').checked,true);
+ assert.equal(document.getElementById('table-save').disabled,false);
+ assert.equal(source,original);
+ click('table-undo-draft');
+ assert.equal(document.getElementById('table-save').disabled,true);
+ click('table-cancel');assert.equal(source,original);
+ click('edit-tables');click('table-save');
+ assert.equal(new JSDOM(source).window.document.querySelectorAll('thead th[scope="col"]').length,2);
+ assert.equal(document.getElementById('table-dialog').open,false);
+});
