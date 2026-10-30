@@ -3,7 +3,7 @@ import { assignTableHeaders } from './table-auto-headers.ts';
 import { mergeCells, splitCell, tableGrid } from './table-merge.ts';
 import { editCellText, changeTableStructure, setCellHeader, associateCellHeaders, removeTableParagraphs, keepOnlyTableTags, removeUnnecessaryTableAttributes } from './table-model.ts';
 import { cleanHtml } from './converter.ts';
-import { createTableDraft, setTableCaption, setTableHeaders, applyTableDraft, type TableDraft, type TableItem, type HeaderAxis } from './table-model.ts';
+import { completeSelectedHeaderScopes, createTableDraft, setTableCaption, setTableHeaders, applyTableDraft, type TableDraft, type TableItem, type HeaderAxis } from './table-model.ts';
 import { getElement } from './dom.ts';
 import './table-editor.css';
 import { createTableStyleChecklist, setTableStyle } from './table-styles.ts';
@@ -600,6 +600,7 @@ export function setupTableEditor({getSource, commit, notify}: TableEditorOptions
   elements.open.onclick=()=>{
     activateTab('structure');
     baseSource=getSource();draft=createTableDraft(baseSource);active=0;undoStack.length=0;elements.caption.disabled=false;
+    rememberMutation(() => draft.tables.forEach(completeSelectedHeaderScopes));
     refreshPicker();
     if(draft.tables.length)show(0);else renderEmpty();
     elements.dialog.showModal();

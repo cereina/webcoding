@@ -11,10 +11,6 @@ export function setupTableEditorTabs(dialog: HTMLElement): (name: string) => voi
       const panel = dialog.querySelector<HTMLElement>(`#${tab.getAttribute('aria-controls')}`);
       if (panel) panel.hidden = !active;
     }
-    // A tool can open its own disclosure without hiding the table below it.
-    dialog.querySelectorAll<HTMLDetailsElement>('.table-tool-panel[hidden] details').forEach(details => {
-      details.open = false;
-    });
   };
   tabs.forEach((tab, index) => {
     tab.addEventListener('click', () => activate(tab.id.replace('table-tab-', '')));

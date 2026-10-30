@@ -5,6 +5,24 @@ export function setupWorkspace() {
   const layout = getElement('workspace-layout', 'select');
   const size = getElement('preview-size', 'select');
   const frame = getElement('preview', 'iframe');
+  const expand = getElement('workspace-expand', 'button');
+  let savedLayout = layout.value;
+  let savedScroll = 0;
+  expand.onclick = () => {
+    const full = !document.body.classList.contains('full-workspace');
+    if (full) {
+      savedLayout = layout.value;
+      savedScroll = window.scrollY;
+      layout.value = 'split';
+    } else {
+      layout.value = savedLayout;
+    }
+    document.body.classList.toggle('full-workspace', full);
+    expand.textContent = full ? 'Exit full workspace' : 'Full workspace';
+    expand.setAttribute('aria-pressed', String(full));
+    setLayout();
+    if (!full) window.scrollTo(0, savedScroll);
+  };
   let ratio = 50;
   const setRatio = (value: number) => {
     ratio = Math.max(25, Math.min(75, value));

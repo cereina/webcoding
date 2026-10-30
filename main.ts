@@ -1,3 +1,4 @@
+import { setupBulkTables } from './bulk-tables.ts';
 import { removeAllSections, wrapHeadingSections } from './section-model.ts';
 import { extraBlocks, makeBlock } from './building-blocks.ts';
 import { setupWorkspace } from './workspace.ts';
@@ -60,6 +61,7 @@ function refresh() {
 }
 function commit(value: string, message?: string) { editor.replace(value); refresh(); if (message) notify(message); }
 setupTableEditor({ getSource: () => editor.value, commit, notify });
+setupBulkTables({ getSource: () => editor.value, commit });
 setupImageEditor({ getSource: () => editor.value, commit });
 setupImageExport({ getSource: () => editor.value, commit });
 setupHeadingEditor({ getSource: () => editor.value, commit });

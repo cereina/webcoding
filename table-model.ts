@@ -96,6 +96,18 @@ export function setTableHeaders(item: TableItem, axis: HeaderAxis, index: number
   syncTableHead(item);
   refreshTableShape(item);
 }
+/** Commit inferred simple heading bands without overriding explicit ID relationships. */
+export function completeSelectedHeaderScopes(item: TableItem): void {
+  if (item.complex || item.rows.some(row => [...row.cells].some(cell => cell.hasAttribute('headers')))) return;
+  let changed = false;
+  item.rows.forEach((row, r) => [...row.cells].forEach((cell, c) => {
+    if (cell.tagName !== 'TH' || cell.scope) return;
+    const scope = item.headerRows.has(r) ? 'col' : item.headerColumns.has(c) ? 'row' : '';
+    if (scope) { cell.setAttribute('scope', scope); changed = true; }
+  }));
+  if (changed) { syncTableHead(item); item.dirty = true; }
+}
+
 export function applyTableDraft(draft: TableDraft): string {
   const changed = draft.tables.filter(item => item.dirty);
   const patches = changed.filter(item => !changed.some(parent => parent !== item && parent.table.contains(item.table)))

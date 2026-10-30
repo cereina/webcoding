@@ -29,3 +29,35 @@ body{font-size:16px}.brand-copy{font-size:25px;font-weight:750;letter-spacing:-1
 
 
 .cleanup-dialog{width:min(760px,calc(100% - 32px));max-height:88vh;overflow:auto}.cleanup-summary{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 20px}.cleanup-summary span{display:inline-flex;padding:7px 10px;border-radius:999px;background:#eef5f1;color:#28473d;font-size:13px;font-weight:650}.cleanup-dialog section{margin:18px 0}.cleanup-dialog section h3{margin:0 0 10px;font-size:16px}.cleanup-report-list{display:grid;gap:10px}.cleanup-report-item{border:1px solid var(--line);border-radius:8px;background:#fbfcfb}.cleanup-report-item summary{cursor:pointer;padding:11px 13px;font-size:14px;font-weight:650}.cleanup-report-item ul{margin:0;padding:0 16px 13px 34px}.cleanup-report-item li{font-size:13px;line-height:1.55;color:var(--muted);margin:4px 0}.cleanup-report-empty{padding:12px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:13px}.cleanup-report-warning{border-color:#d8b16d;background:#fffaf0}
+
+/* Full workspace keeps the existing editor and preview mounted. */
+body.full-workspace { overflow: hidden; }
+.full-workspace .topbar,
+.full-workspace .app-shell > .intro,
+.full-workspace .app-shell > .import-bar,
+.full-workspace .app-shell > .bottom-grid { display: none; }
+.full-workspace .app-shell {
+  width: 100%; max-width: none; height: 100vh; height: 100dvh;
+  margin: 0; padding: 8px;
+  display: flex; flex-direction: column; gap: 6px; overflow: auto;
+}
+.full-workspace .app-shell > .workspace-footer { min-height: 24px; padding: 0 8px; flex-shrink: 0; }
+.full-workspace .workspace-controls { margin: 0; padding: 0 4px; flex-shrink: 0; }
+.full-workspace #workspace { flex: 1 0 320px; min-height: 320px; border-radius: 6px; }
+.full-workspace #workspace .pane { min-height: 0; overflow: hidden; }
+.full-workspace #editor.code-editor,
+.full-workspace #workspace .preview-wrap { min-height: 0; height: 0; flex: 1 1 0; }
+.full-workspace #workspace .preview-wrap iframe { min-height: 0; height: 100%; }
+.full-workspace .pane-header { padding: 6px 10px; min-height: 48px; flex-shrink: 0; }
+.full-workspace .editor-toolbar { padding: 6px 10px; min-height: 40px; flex-shrink: 0; }
+.full-workspace .pane > .workspace-footer { padding: 5px 10px; min-height: 30px; flex-shrink: 0; }
+.full-workspace .app-footer { padding: 0 4px; flex-shrink: 0; }
+@media (max-width: 720px) {
+  .full-workspace #workspace[data-layout=split] { grid-template-rows: minmax(300px,1fr) minmax(250px,1fr); flex-basis: 650px; }
+  .full-workspace .workspace-controls > div { gap: 6px; }
+  .full-workspace .app-footer > span { display: none; }
+}
+/* Import actions remain available in full workspace. */
+.full-workspace .app-shell > .import-bar { display: flex; flex-shrink: 0; margin: 0; padding: 4px 8px; border: 0; border-radius: 6px; }
+.full-workspace .import-bar .import-copy { display: none; }
+.full-workspace .import-bar .import-actions { flex-wrap: wrap; }
