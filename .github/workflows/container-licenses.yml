@@ -32,7 +32,7 @@ jobs:
         run: python3 scripts/inventory-dockerfile.py
       - name: Retain package metadata and packaged notices for review
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: container-license-inventory
           path: artifacts/container-licenses/*.json
